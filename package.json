@@ -1,0 +1,15 @@
+{
+  "name": "http-cache-semantics",
+  "version": "1.0.0",
+  "description": "Parses Cache-Control headers and friends",
+  "main": "index.js",
+  "repository": "https://github.com/pornel/http-cache-semantics.git",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "Kornel Lesiński <kornel@geekhood.net> (https://kornel.ski/)",
+  "license": "BSD-2-Clause",
+  "devDependencies": {
+    "mocha": "^2.4.5"
+  }
+}
