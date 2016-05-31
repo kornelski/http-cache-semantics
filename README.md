@@ -39,6 +39,10 @@ const options = {
 
 If `options.shared` is true (default), then response is evaluated from perspective of a shared cache (i.e. `private` is not cacheable and `s-maxage` is respected). If `options.shared` is false, then response is evaluated from perspective of a single-user cache (i.e. `private` is cacheable and `s-maxage` is ignored).
 
+### `storable()`
+
+Returns `true` if the response can be stored in a cache. If it's `false` then you MUST NOT store either request or the response.
+
 ### `stale()`
 
 Returns `true` if the response is stale (i.e. not fresh).
