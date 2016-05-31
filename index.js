@@ -1,4 +1,10 @@
 'use strict';
+// rfc7231 6.1
+const statusCodeCacheableByDefault = [200, 203, 204, 206, 300, 301, 404, 405, 410, 414, 501];
+
+// This implementation does not understand partial responses (206)
+const understoodStatuses = [200, 204, 301, 302, 303, 404, 410, 501];
+
 
 function parseCacheControl(header) {
     const cc = {};
@@ -46,6 +52,47 @@ CachePolicy.prototype = {
         return Date.now();
     },
 
+    storable() {
+        const status = (this._res.status === undefined) ? 200 : this._res.status;
+
+        // The "no-store" request directive indicates that a cache MUST NOT store any part of either this request or any response to it.
+        return !this._reqcc['no-store'] &&
+            // A cache MUST NOT store a response to any request, unless:
+            // The request method is understood by the cache and defined as being cacheable, and
+            (!this._req.method || 'GET' === this._req.method || 'HEAD' === this._req.method || ('POST' === this._req.method && this._hasExplicitExpiration())) &&
+            // the response status code is understood by the cache, and
+            understoodStatuses.includes(status) &&
+            // the "no-store" cache directive does not appear in request or response header fields, and
+            !this._rescc['no-store'] &&
+            // the "private" response directive does not appear in the response, if the cache is shared, and
+            (!this._isShared || !this._rescc.private) &&
+            // the Authorization header field does not appear in the request, if the cache is shared,
+            (!this._isShared || !this._req.headers['authorization'] || this._allowsStoringAuthenticated()) &&
+            // the response either:
+            (
+                // contains an Expires header field, or
+                this._res.headers.expires ||
+                // contains a max-age response directive, or
+                // contains a s-maxage response directive and the cache is shared, or
+                // contains a public response directive.
+                this._rescc.public || this._rescc['max-age'] || this._rescc['s-maxage'] ||
+                // has a status code that is defined as cacheable by default
+                statusCodeCacheableByDefault.includes(status)
+            );
+    },
+
+    _hasExplicitExpiration() {
+        // 4.2.1 Calculating Freshness Lifetime
+        return (this._isShared && this._rescc['s-maxage']) ||
+            this._rescc['max-age'] ||
+            this._res.headers.expires;
+    },
+
+    _allowsStoringAuthenticated() {
+        //  following Cache-Control response directives (Section 5.2.2) have such an effect: must-revalidate, public, and s-maxage.
+        return this._rescc['must-revalidate'] || this._rescc['public'] || this._rescc['s-maxage'];
+    },
+
     /**
      * Value of the Date response header or current time if Date was demed invalid
      * @return timestamp
@@ -77,13 +124,13 @@ CachePolicy.prototype = {
     },
 
     maxAge() {
-        if (this._rescc['no-cache'] || this._rescc['no-store']) {
+        if (!this.storable() || this._rescc['no-cache']) {
             return 0;
         }
 
         // Shared responses with cookies are cacheable according to the RFC, but IMHO it'd be unwise to do so by default
         // so this implementation requires explicit opt-in via public header
-        if (this._isShared && (this._rescc['private'] || (this._res.headers['set-cookie'] && !this._rescc['public']))) {
+        if (this._isShared && (this._res.headers['set-cookie'] && !this._rescc['public'])) {
             return 0;
         }
 

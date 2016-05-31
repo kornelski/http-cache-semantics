@@ -106,6 +106,16 @@ describe('Response headers', function() {
         assert.equal(0, cache.maxAge());
     });
 
+    it('uncacheable 503', function() {
+        const cache = new CachePolicy(req, {
+            status: 503,
+            headers:{
+                'cache-control': 'public, max-age=1000',
+            }});
+        assert(!cache.isFresh());
+        assert.equal(0, cache.maxAge());
+    });
+
     it('cacheable 301', function() {
         const cache = new CachePolicy(req, {
             status: 301,
@@ -115,6 +125,16 @@ describe('Response headers', function() {
         assert(cache.isFresh());
     });
 
+    it('uncacheable 303', function() {
+        const cache = new CachePolicy(req, {
+            status: 303,
+            headers:{
+                'last-modified': 'Mon, 07 Mar 2016 11:52:56 GMT',
+            }});
+        assert(!cache.isFresh());
+        assert.equal(0, cache.maxAge());
+    });
+
     it('cacheable 303', function() {
         const cache = new CachePolicy(req, {
             status: 303,
@@ -122,6 +142,16 @@ describe('Response headers', function() {
                 'cache-control': 'max-age=1000',
             }});
         assert(cache.isFresh());
+    });
+
+    it('uncacheable 412', function() {
+        const cache = new CachePolicy(req, {
+            status: 412,
+            headers:{
+                'cache-control': 'public, max-age=1000',
+            }});
+        assert(!cache.isFresh());
+        assert.equal(0, cache.maxAge());
     });
 
     it('expired expires cached with max-age', function() {

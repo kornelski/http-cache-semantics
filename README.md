@@ -45,9 +45,9 @@ If `options.shared` is true (default), then response is evaluated from perspecti
 * `Cache-Control` response header
 * `Pragma` response header
 * `Age` response header
+* Default cacheability of statuses and methods
 
 ## Unimplemented
 
-* Request properties are not evaluated
 * `Vary` support is as lame and incomplete as in web browsers
 * No support for revalidation and stale responses
