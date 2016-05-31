@@ -5,7 +5,6 @@ const statusCodeCacheableByDefault = [200, 203, 204, 206, 300, 301, 404, 405, 41
 // This implementation does not understand partial responses (206)
 const understoodStatuses = [200, 204, 301, 302, 303, 404, 410, 501];
 
-
 function parseCacheControl(header) {
     const cc = {};
     if (!header) return cc;
@@ -35,9 +34,12 @@ function CachePolicy(req, res, {shared} = {}) {
 
     this._responseTime = this.now();
     this._isShared = shared !== false;
-    this._res = res;
+    this._status = 'status' in res ? res.status : 200;
+    this._resHeaders = res.headers;
     this._rescc = parseCacheControl(res.headers['cache-control']);
-    this._req = req;
+    this._method = 'method' in req ? req.method : 'GET';
+    this._url = req.url;
+    this._reqHeaders = req.headers;
     this._reqcc = parseCacheControl(req.headers['cache-control']);
 
     // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive
@@ -53,31 +55,29 @@ CachePolicy.prototype = {
     },
 
     storable() {
-        const status = (this._res.status === undefined) ? 200 : this._res.status;
-
         // The "no-store" request directive indicates that a cache MUST NOT store any part of either this request or any response to it.
         return !this._reqcc['no-store'] &&
             // A cache MUST NOT store a response to any request, unless:
             // The request method is understood by the cache and defined as being cacheable, and
-            (!this._req.method || 'GET' === this._req.method || 'HEAD' === this._req.method || ('POST' === this._req.method && this._hasExplicitExpiration())) &&
+            ('GET' === this._method || 'HEAD' === this._method || ('POST' === this._method && this._hasExplicitExpiration())) &&
             // the response status code is understood by the cache, and
-            understoodStatuses.includes(status) &&
+            understoodStatuses.includes(this._status) &&
             // the "no-store" cache directive does not appear in request or response header fields, and
             !this._rescc['no-store'] &&
             // the "private" response directive does not appear in the response, if the cache is shared, and
             (!this._isShared || !this._rescc.private) &&
             // the Authorization header field does not appear in the request, if the cache is shared,
-            (!this._isShared || !this._req.headers['authorization'] || this._allowsStoringAuthenticated()) &&
+            (!this._isShared || !this._reqHeaders.authorization || this._allowsStoringAuthenticated()) &&
             // the response either:
             (
                 // contains an Expires header field, or
-                this._res.headers.expires ||
+                this._resHeaders.expires ||
                 // contains a max-age response directive, or
                 // contains a s-maxage response directive and the cache is shared, or
                 // contains a public response directive.
                 this._rescc.public || this._rescc['max-age'] || this._rescc['s-maxage'] ||
                 // has a status code that is defined as cacheable by default
-                statusCodeCacheableByDefault.includes(status)
+                statusCodeCacheableByDefault.includes(this._status)
             );
     },
 
@@ -85,7 +85,7 @@ CachePolicy.prototype = {
         // 4.2.1 Calculating Freshness Lifetime
         return (this._isShared && this._rescc['s-maxage']) ||
             this._rescc['max-age'] ||
-            this._res.headers.expires;
+            this._resHeaders.expires;
     },
 
     satisfiesWithoutRevalidation(req) {
@@ -102,10 +102,10 @@ CachePolicy.prototype = {
         }
 
         // The presented effective request URI and that of the stored response match, and
-        return (!this._req.url || this._req.url === req.url) &&
+        return (!this._url || this._url === req.url) &&
             (this._reqHeaders.host === req.headers.host) &&
             // the request method associated with the stored response allows it to be used for the presented request, and
-            (!this._req.method || this._req.method === req.method) &&
+            (!req.method || this._method === req.method) &&
             // selecting header fields nominated by the stored response (if any) match those presented, and
             this._varyMatches(req) &&
             // the stored response is either:
@@ -115,22 +115,22 @@ CachePolicy.prototype = {
 
     _allowsStoringAuthenticated() {
         //  following Cache-Control response directives (Section 5.2.2) have such an effect: must-revalidate, public, and s-maxage.
-        return this._rescc['must-revalidate'] || this._rescc['public'] || this._rescc['s-maxage'];
+        return this._rescc['must-revalidate'] || this._rescc.public || this._rescc['s-maxage'];
     },
 
     _varyMatches(req) {
-        if (!this._res.headers.vary) {
+        if (!this._resHeaders.vary) {
             return true;
         }
 
         // A Vary header field-value of "*" always fails to match
-        if (this._req.headers.vary === '*') {
+        if (this._reqHeaders.vary === '*') {
             return false;
         }
 
-        const fields = this._res.headers.vary.toLowerCase().split(/\s*,\s*/);
+        const fields = this._resHeaders.vary.toLowerCase().split(/\s*,\s*/);
         for(const name of fields) {
-            if (req.headers[name] !== this._req.headers[name]) return false;
+            if (req.headers[name] !== this._reqHeaders[name]) return false;
         }
         return true;
     },
@@ -140,7 +140,7 @@ CachePolicy.prototype = {
      * @return timestamp
      */
     date() {
-        const dateValue = Date.parse(this._res.headers.date)
+        const dateValue = Date.parse(this._resHeaders.date)
         const maxClockDrift = 8*3600*1000;
         if (Number.isNaN(dateValue) || dateValue < this._responseTime-maxClockDrift || dateValue > this._responseTime+maxClockDrift) {
             return this._responseTime;
@@ -154,8 +154,8 @@ CachePolicy.prototype = {
      */
     age() {
         let age = Math.max(0, (this._responseTime - this.date())/1000);
-        if (this._res.headers.age) {
-            let ageValue = parseInt(this._res.headers.age);
+        if (this._resHeaders.age) {
+            let ageValue = parseInt(this._resHeaders.age);
             if (isFinite(ageValue)) {
                 if (ageValue > age) age = ageValue;
             }
@@ -172,11 +172,11 @@ CachePolicy.prototype = {
 
         // Shared responses with cookies are cacheable according to the RFC, but IMHO it'd be unwise to do so by default
         // so this implementation requires explicit opt-in via public header
-        if (this._isShared && (this._res.headers['set-cookie'] && !this._rescc['public'])) {
+        if (this._isShared && (this._resHeaders['set-cookie'] && !this._rescc.public)) {
             return 0;
         }
 
-        if (this._res.headers.vary === '*') {
+        if (this._resHeaders.vary === '*') {
             return 0;
         }
 
@@ -193,8 +193,8 @@ CachePolicy.prototype = {
         }
 
         const dateValue = this.date();
-        if (this._res.headers['expires']) {
-            const expires = Date.parse(this._res.headers['expires']);
+        if (this._resHeaders.expires) {
+            const expires = Date.parse(this._resHeaders.expires);
             // A cache recipient MUST interpret invalid date formats, especially the value "0", as representing a time in the past (i.e., "already expired").
             if (Number.isNaN(expires) || expires < dateValue) {
                 return 0;
@@ -202,8 +202,8 @@ CachePolicy.prototype = {
             return (expires - dateValue)/1000;
         }
 
-        if (this._res.headers['last-modified']) {
-            const lastModified = Date.parse(this._res.headers['last-modified']);
+        if (this._resHeaders['last-modified']) {
+            const lastModified = Date.parse(this._resHeaders['last-modified']);
             if (isFinite(lastModified) && dateValue > lastModified) {
                 return (dateValue - lastModified) * 0.00001; // In absence of other information cache for 1% of item's age
             }
@@ -217,4 +217,3 @@ CachePolicy.prototype = {
 };
 
 module.exports = CachePolicy;
-
