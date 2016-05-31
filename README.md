@@ -19,9 +19,10 @@ Cacheability of response depends on how it was requested, so both request and re
 
 ```js
 const request = {
+    url: '/',
     method: 'GET',
     headers: {
-        'accept': '*/*',
+        accept: '*/*',
     },
 };
 
@@ -38,6 +39,12 @@ const options = {
 ```
 
 If `options.shared` is true (default), then response is evaluated from perspective of a shared cache (i.e. `private` is not cacheable and `s-maxage` is respected). If `options.shared` is false, then response is evaluated from perspective of a single-user cache (i.e. `private` is cacheable and `s-maxage` is ignored).
+
+### `satisfiesWithoutRevalidation(request)`
+
+If it returns `true`, then the given `request` matches the response this cache policy has been created with, and the existing response can be used without contacting the server.
+
+If it returns `false`, then the response may not be matching at all (e.g. it's different URL or method), or may require to be refreshed first.
 
 ### `storable()`
 

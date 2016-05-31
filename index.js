@@ -88,21 +88,50 @@ CachePolicy.prototype = {
             this._res.headers.expires;
     },
 
+    satisfiesWithoutRevalidation(req) {
+        if (!req || !req.headers) {
+            throw Error("Request headers missing");
+        }
+
+        // When presented with a request, a cache MUST NOT reuse a stored response, unless:
+        // the presented request does not contain the no-cache pragma (Section 5.4), nor the no-cache cache directive,
+        // unless the stored response is successfully validated (Section 4.3), and
+        const requestCC = parseCacheControl(req.headers['cache-control']);
+        if (requestCC['no-cache'] || /no-cache/.test(req.headers.pragma)) {
+            return false;
+        }
+
+        // The presented effective request URI and that of the stored response match, and
+        return (!this._req.url || this._req.url === req.url) &&
+            // the request method associated with the stored response allows it to be used for the presented request, and
+            (!this._req.method || this._req.method === req.method) &&
+            // selecting header fields nominated by the stored response (if any) match those presented, and
+            this._varyMatches(req) &&
+            // the stored response is either:
+            // fresh, or allowed to be served stale
+            !this.stale() // TODO: allow stale
+    },
+
     _allowsStoringAuthenticated() {
         //  following Cache-Control response directives (Section 5.2.2) have such an effect: must-revalidate, public, and s-maxage.
         return this._rescc['must-revalidate'] || this._rescc['public'] || this._rescc['s-maxage'];
     },
 
-    _varyKeyForRequest(req) {
-        if (!this._res.headers.vary) return '';
-
-        let key = '';
-        const fields = this._res.headers.vary.toLowerCase().split(/\s*,\s*/);
-        fields.sort();
-        for(const name of fields) {
-            key += `${name}:${req.headers[name] || '÷'}\n`;
+    _varyMatches(req) {
+        if (!this._res.headers.vary) {
+            return true;
         }
-        return key;
+
+        // A Vary header field-value of "*" always fails to match
+        if (this._req.headers.vary === '*') {
+            return false;
+        }
+
+        const fields = this._res.headers.vary.toLowerCase().split(/\s*,\s*/);
+        for(const name of fields) {
+            if (req.headers[name] !== this._req.headers[name]) return false;
+        }
+        return true;
     },
 
     /**

@@ -5,71 +5,63 @@ const CachePolicy = require('..');
 
 describe('Vary', function() {
     it('Basic', function() {
-        const cache1 = new CachePolicy({method:'GET',headers:{'weather': 'nice'}}, {headers:{'vary':'weather'}});
-        const cache2 = new CachePolicy({method:'GET',headers:{'weather': 'bad'}}, {headers:{'vary':'WEATHER'}});
+        const policy = new CachePolicy({headers:{'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'weather'}});
 
-        assert.equal(cache1.cacheKey(), cache1.cacheKey());
-        assert.equal(cache2.cacheKey(), cache2.cacheKey());
-        assert.notEqual(cache1.cacheKey(), cache2.cacheKey());
+        assert(policy.satisfiesWithoutRevalidation({headers:{'weather': 'nice'}}));
+        assert(!policy.satisfiesWithoutRevalidation({headers:{'weather': 'bad'}}));
     });
 
-    it("* doesn't match other", function() {
-        const cache1 = new CachePolicy({method:'GET',headers:{'weather': 'ok'}}, {headers:{'vary':'*'}});
-        const cache2 = new CachePolicy({method:'GET',headers:{'weather': 'ok'}}, {headers:{'vary':'weather'}});
+    it("* doesn't match", function() {
+        const policy = new CachePolicy({headers:{'weather': 'ok'}}, {headers:{'cache-control':'max-age=5','vary':'*'}});
 
-        assert.equal(cache2.cacheKey(), cache2.cacheKey());
-        assert.notEqual(cache1.cacheKey(), cache2.cacheKey());
+        assert(!policy.satisfiesWithoutRevalidation({headers:{'weather': 'ok'}}));
     });
 
     it("* is stale", function() {
-        const cache1 = new CachePolicy({method:'GET',headers:{'weather': 'ok'}}, {headers:{'cache-control':'public,max-age=99', 'vary':'*'}});
-        const cache2 = new CachePolicy({method:'GET',headers:{'weather': 'ok'}}, {headers:{'cache-control':'public,max-age=99', 'vary':'weather'}});
+        const policy1 = new CachePolicy({headers:{'weather': 'ok'}}, {headers:{'cache-control':'public,max-age=99', 'vary':'*'}});
+        const policy2 = new CachePolicy({headers:{'weather': 'ok'}}, {headers:{'cache-control':'public,max-age=99', 'vary':'weather'}});
 
-        assert.notEqual(cache1.cacheKey(), cache2.cacheKey());
-
-        assert(cache1.stale());
-        assert(!cache2.stale());
+        assert(policy1.stale());
+        assert(!policy2.stale());
     });
 
     it('Values are case-sensitive', function() {
-        const cache1 = new CachePolicy({method:'GET',headers:{'weather': 'BAD'}}, {headers:{'vary':'weather'}});
-        const cache2 = new CachePolicy({method:'GET',headers:{'weather': 'bad'}}, {headers:{'vary':'weather'}});
+        const policy = new CachePolicy({headers:{'weather': 'BAD'}}, {headers:{'cache-control':'max-age=5','vary':'Weather'}});
 
-        assert.notEqual(cache1.cacheKey(), cache2.cacheKey());
+        assert(policy.satisfiesWithoutRevalidation({headers:{'weather': 'BAD'}}));
+        assert(!policy.satisfiesWithoutRevalidation({headers:{'weather': 'bad'}}));
     });
 
     it('Irrelevant headers ignored', function() {
-        const cache1 = new CachePolicy({method:'GET',headers:{'weather': 'nice'}}, {headers:{'vary':'moon-phase'}});
-        const cache2 = new CachePolicy({method:'GET',headers:{'weather': 'bad'}}, {headers:{'vary':'moon-phase'}});
+        const policy = new CachePolicy({headers:{'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'moon-phase'}});
 
-        assert.equal(cache1.cacheKey(), cache1.cacheKey());
-        assert.equal(cache1.cacheKey(), cache2.cacheKey());
+        assert(policy.satisfiesWithoutRevalidation({headers:{'weather': 'bad'}}));
+        assert(policy.satisfiesWithoutRevalidation({headers:{'sun': 'shining'}}));
+        assert(!policy.satisfiesWithoutRevalidation({headers:{'moon-phase': 'full'}}));
     });
 
     it('Absence is meaningful', function() {
-        const cache1 = new CachePolicy({method:'GET',headers:{'weather': 'nice'}}, {headers:{'vary':'moon-phase'}});
-        const cache2 = new CachePolicy({method:'GET',headers:{'weather': 'bad'}}, {headers:{'vary':'sunshine'}});
+        const policy = new CachePolicy({headers:{'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'moon-phase, weather'}});
 
-        assert.equal(cache2.cacheKey(), cache2.cacheKey());
-        assert.notEqual(cache1.cacheKey(), cache2.cacheKey());
+        assert(policy.satisfiesWithoutRevalidation({headers:{'weather': 'nice'}}));
+        assert(!policy.satisfiesWithoutRevalidation({headers:{'weather': 'nice', 'moon-phase': ''}}));
+        assert(!policy.satisfiesWithoutRevalidation({headers:{}}));
     });
 
     it('All values must match', function() {
-        const cache1 = new CachePolicy({method:'GET',headers:{'sun': 'shining', 'weather': 'nice'}}, {headers:{'vary':'weather, sun'}});
-        const cache2 = new CachePolicy({method:'GET',headers:{'sun': 'shining', 'weather': 'bad'}}, {headers:{'vary':'weather, sun'}});
-        assert.notEqual(cache1.cacheKey(), cache2.cacheKey());
+        const policy = new CachePolicy({headers:{'sun': 'shining', 'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'weather, sun'}});
+
+        assert(policy.satisfiesWithoutRevalidation({headers:{'sun': 'shining', 'weather': 'nice'}}));
+        assert(!policy.satisfiesWithoutRevalidation({headers:{'sun': 'shining', 'weather': 'bad'}}));
     });
 
     it('Order is irrelevant', function() {
-        const cache1 = new CachePolicy({method:'GET',headers:{'weather': 'nice'}}, {headers:{'vary':'moon-phase, SUNSHINE'}});
-        const cache2 = new CachePolicy({method:'GET',headers:{'weather': 'bad'}}, {headers:{'vary':'sunshine, moon-phase'}});
-        assert.equal(cache1.cacheKey(), cache2.cacheKey());
+        const policy1 = new CachePolicy({headers:{'sun': 'shining', 'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'weather, sun'}});
+        const policy2 = new CachePolicy({headers:{'sun': 'shining', 'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'sun, weather'}});
 
-        const cache3 = new CachePolicy({method:'GET',headers:{'weather': 'nice'}}, {headers:{'vary':'moon-phase, weather'}});
-        const cache4 = new CachePolicy({method:'GET',headers:{'weather': 'nice'}}, {headers:{'vary':'weather, moon-phase'}});
-        assert.equal(cache3.cacheKey(), cache4.cacheKey());
-
-        assert.notEqual(cache1.cacheKey(), cache3.cacheKey());
-        assert.notEqual(cache2.cacheKey(), cache4.cacheKey());
+        assert(policy1.satisfiesWithoutRevalidation({headers:{'weather': 'nice', 'sun': 'shining'}}));
+        assert(policy1.satisfiesWithoutRevalidation({headers:{'sun': 'shining', 'weather': 'nice'}}));
+        assert(policy2.satisfiesWithoutRevalidation({headers:{'weather': 'nice', 'sun': 'shining'}}));
+        assert(policy2.satisfiesWithoutRevalidation({headers:{'sun': 'shining', 'weather': 'nice'}}));
     });
 });
