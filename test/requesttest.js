@@ -31,6 +31,23 @@ describe('Request properties', function() {
         assert(cache.storable());
     });
 
+    it('Proxy cacheable auth is OK', function() {
+        const cache = new CachePolicy({method:'GET',headers:{'authorization': 'test'}}, {headers:{'cache-control':'max-age=0,s-maxage=12'}});
+        assert(!cache.stale());
+        assert(cache.storable());
+    });
+
+    it('Private auth is OK', function() {
+        const cache = new CachePolicy({method:'GET',headers:{'authorization': 'test'}}, cacheableResponse, {shared:false});
+        assert(!cache.stale());
+        assert(cache.storable());
+    });
+
+    it('Revalidated auth is OK', function() {
+        const cache = new CachePolicy({headers:{'authorization': 'test'}}, {headers:{'cache-control':'max-age=88,must-revalidate'}});
+        assert(cache.storable());
+    });
+
     it('Auth prevents caching by default', function() {
         const cache = new CachePolicy({method:'GET',headers:{'authorization': 'test'}}, cacheableResponse);
         assert(cache.stale());

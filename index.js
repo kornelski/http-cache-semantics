@@ -17,10 +17,6 @@ function parseCacheControl(header) {
         cc[k] = (v === undefined) ? true : v.replace(/^"|"$/g, ''); // TODO: lame unquoting
     }
 
-    // The s-maxage directive also implies the semantics of the proxy-revalidate response directive.
-    if ('s-maxage' in cc) {
-        cc['proxy-revalidate'] = true;
-    }
     return cc;
 }
 
@@ -181,6 +177,9 @@ CachePolicy.prototype = {
         }
 
         if (this._isShared) {
+            if (this._rescc['proxy-revalidate']) {
+                return 0;
+            }
             // if a response includes the s-maxage directive, a shared cache recipient MUST ignore the Expires field.
             if (this._rescc['s-maxage']) {
                 return parseInt(this._rescc['s-maxage'], 10);
