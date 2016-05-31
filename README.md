@@ -1,21 +1,30 @@
-# HTTP cache semantics
+# Can I cache this?
 
-`CachePolicy` object that computes properties of a HTTP response, such as whether it's fresh or stale, and how long it can be cached for. Based on RFC 7234.
+`CachePolicy` implements HTTP cache semantics. It can tell when responses can be reused from cache, taking into account [RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. It's aware of many tricky details such as the `Vary` header, proxy revalidation, authenticated responses.
 
 ## Usage
 
+Cacheability of an HTTP response depends on how it was requested, so both `request` and `response` are required to create the policy.
+
 ```js
-const cache = new CachePolicy(request, response, options);
+const policy = new CachePolicy(request, response, options);
 
-// Age counts from the time response has been created
-const secondsFresh = cache.maxAge();
-const secondsOld = cache.age();
+if (!policy.storable()) {
+    // throw the response away, it's not usable at all
+}
 
-// Current state
-const outOfDate = cache.stale();
+if (policy.satisfiesWithoutRevalidation(newRequest)) {
+    // the previous `response` can be used to respond to the `newRequest`
+}
 ```
 
-Cacheability of response depends on how it was requested, so both request and response are required. Both are objects with `headers` property that is an object with lowercased header names as keys, e.g.
+It may be surprising, but it's not enough for an HTTP response to be [fresh](#yo-fresh) to satisfy a request. It may need to match request headers specified in `Vary`. Even a matching fresh response may still not be usable if the new request restricted cacheability, etc.
+
+The key method is `satisfiesWithoutRevalidation(newRequest)`, which checks whether the `newRequest` is compatible with the original request and whether all caching conditions are met.
+
+### Constructor options
+
+Request and response must have a `headers` property with all header names in lower case. `url`, `status` and `method` are optional (defaults are any URL, status `200`, and `GET` method).
 
 ```js
 const request = {
@@ -45,19 +54,25 @@ If `options.shared` is true (default), then response is evaluated from perspecti
 
 ### `satisfiesWithoutRevalidation(request)`
 
-If it returns `true`, then the given `request` matches the response this cache policy has been created with, and the existing response can be used without contacting the server.
+If it returns `true`, then the given `request` matches the original response this cache policy has been created with, and the response can be reused without contacting the server.
 
-If it returns `false`, then the response may not be matching at all (e.g. it's different URL or method), or may require to be refreshed first.
+Note that you can't return the old response as-is. The old response must be cleaned up (remove hop-by-hop headers such as `TE` and `Connection`) and updated (add `Age` or rewrite `max-age`, etc.).
+
+If it returns `false`, then the response may not be matching at all (e.g. it's for a different URL or method), or may require to be refreshed first.
 
 ### `storable()`
 
-Returns `true` if the response can be stored in a cache. If it's `false` then you MUST NOT store either request or the response.
+Returns `true` if the response can be stored in a cache. If it's `false` then you MUST NOT store either the request or the response.
 
 ### `stale()`
 
 Returns `true` if the response is stale (i.e. not fresh).
 
-It generally means the response can't be used any more without revalidation with the server. However, there are exceptions, e.g. client can explicitly allow stale responses. A fresh response still may not be used if other conditions—such as `Vary`—are not satisfied.
+It generally means the response can't be used any more without revalidation with the server. However, there are exceptions, e.g. a client can explicitly allow stale responses. A fresh response still may not be used if other conditions—such as `Vary`—are not satisfied.
+
+# Yo, FRESH
+
+![satisfiesWithoutRevalidation](fresh.jpg)
 
 ## Implemented
 
@@ -65,8 +80,8 @@ It generally means the response can't be used any more without revalidation with
 * `Cache-Control` response header
 * `Pragma` response header
 * `Age` response header
+* `Vary` response header
 * Default cacheability of statuses and methods
-* Basic support for `Vary`
 
 ## Unimplemented
 
