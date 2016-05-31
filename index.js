@@ -105,10 +105,6 @@ CachePolicy.prototype = {
         return key;
     },
 
-    cacheKey() {
-        return `${this._req.method || 'GET'} ${this._req.url || ''} ${this._varyKeyForRequest(this._req)}`;
-    },
-
     /**
      * Value of the Date response header or current time if Date was demed invalid
      * @return timestamp
