@@ -103,6 +103,7 @@ CachePolicy.prototype = {
 
         // The presented effective request URI and that of the stored response match, and
         return (!this._req.url || this._req.url === req.url) &&
+            (this._reqHeaders.host === req.headers.host) &&
             // the request method associated with the stored response allows it to be used for the presented request, and
             (!this._req.method || this._req.method === req.method) &&
             // selecting header fields nominated by the stored response (if any) match those presented, and
