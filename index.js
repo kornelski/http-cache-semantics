@@ -20,7 +20,7 @@ function parseCacheControl(header) {
     return cc;
 }
 
-function CachePolicy(req, res, {shared} = {}) {
+function CachePolicy(req, res, {shared, cacheHeuristic} = {}) {
     if (!res || !res.headers) {
         throw Error("Response headers missing");
     }
@@ -30,6 +30,8 @@ function CachePolicy(req, res, {shared} = {}) {
 
     this._responseTime = this.now();
     this._isShared = shared !== false;
+    this._cacheHeuristic = undefined !== cacheHeuristic ? cacheHeuristic : 0.1; // 10% matches IE
+
     this._status = 'status' in res ? res.status : 200;
     this._resHeaders = res.headers;
     this._rescc = parseCacheControl(res.headers['cache-control']);
@@ -204,7 +206,7 @@ CachePolicy.prototype = {
         if (this._resHeaders['last-modified']) {
             const lastModified = Date.parse(this._resHeaders['last-modified']);
             if (isFinite(lastModified) && dateValue > lastModified) {
-                return (dateValue - lastModified) * 0.00001; // In absence of other information cache for 1% of item's age
+                return (dateValue - lastModified)/1000 * this._cacheHeuristic;
             }
         }
         return 0;

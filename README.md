@@ -35,10 +35,13 @@ const response = {
 
 const options = {
     shared: true,
+    cacheHeuristic: 0.1,
 };
 ```
 
 If `options.shared` is true (default), then response is evaluated from perspective of a shared cache (i.e. `private` is not cacheable and `s-maxage` is respected). If `options.shared` is false, then response is evaluated from perspective of a single-user cache (i.e. `private` is cacheable and `s-maxage` is ignored).
+
+`options.cacheHeuristic` is a fraction of response's age that is used as a fallback cache duration. The default is 0.1 (10%), e.g. if a file hasn't been modified for 100 days, it'll be cached for 100*0.1 = 10 days.
 
 ### `satisfiesWithoutRevalidation(request)`
 
