@@ -21,18 +21,23 @@ function parseCacheControl(header) {
 
 function CachePolicy(req, res, {shared} = {}) {
     if (!res || !res.headers) {
-        throw Error("headers missing");
+        throw Error("Response headers missing");
+    }
+    if (!req || !req.headers) {
+        throw Error("Request headers missing");
     }
 
     this._responseTime = this.now();
     this._isShared = shared !== false;
     this._res = res;
-    this._cc = parseCacheControl(res.headers['cache-control']);
+    this._rescc = parseCacheControl(res.headers['cache-control']);
+    this._req = req;
+    this._reqcc = parseCacheControl(req.headers['cache-control']);
 
     // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive
     // as having the same effect as if "Cache-Control: no-cache" were present (see Section 5.2.1).
     if (!res.headers['cache-control'] && /no-cache/.test(res.headers.pragma)) {
-        this._cc['no-cache'] = true;
+        this._rescc['no-cache'] = true;
     }
 }
 
@@ -72,13 +77,13 @@ CachePolicy.prototype = {
     },
 
     maxAge() {
-        if (this._cc['no-cache'] || this._cc['no-store']) {
+        if (this._rescc['no-cache'] || this._rescc['no-store']) {
             return 0;
         }
 
         // Shared responses with cookies are cacheable according to the RFC, but IMHO it'd be unwise to do so by default
         // so this implementation requires explicit opt-in via public header
-        if (this._isShared && (this._cc['private'] || (this._res.headers['set-cookie'] && !this._cc['public']))) {
+        if (this._isShared && (this._rescc['private'] || (this._res.headers['set-cookie'] && !this._rescc['public']))) {
             return 0;
         }
 
@@ -89,14 +94,14 @@ CachePolicy.prototype = {
 
         if (this._isShared) {
             // if a response includes the s-maxage directive, a shared cache recipient MUST ignore the Expires field.
-            if (this._cc['s-maxage']) {
-                return parseInt(this._cc['s-maxage'], 10);
+            if (this._rescc['s-maxage']) {
+                return parseInt(this._rescc['s-maxage'], 10);
             }
         }
 
         // If a response includes a Cache-Control field with the max-age directive, a recipient MUST ignore the Expires field.
-        if (this._cc['max-age']) {
-            return parseInt(this._cc['max-age'], 10);
+        if (this._rescc['max-age']) {
+            return parseInt(this._rescc['max-age'], 10);
         }
 
         const dateValue = this.date();
