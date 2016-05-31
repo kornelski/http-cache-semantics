@@ -52,17 +52,19 @@ If `options.shared` is true (default), then response is evaluated from perspecti
 
 `options.cacheHeuristic` is a fraction of response's age that is used as a fallback cache duration. The default is 0.1 (10%), e.g. if a file hasn't been modified for 100 days, it'll be cached for 100*0.1 = 10 days.
 
-### `satisfiesWithoutRevalidation(request)`
-
-If it returns `true`, then the given `request` matches the original response this cache policy has been created with, and the response can be reused without contacting the server.
-
-Note that you can't return the old response as-is. The old response must be cleaned up (remove hop-by-hop headers such as `TE` and `Connection`) and updated (add `Age` or rewrite `max-age`, etc.).
-
-If it returns `false`, then the response may not be matching at all (e.g. it's for a different URL or method), or may require to be refreshed first.
-
 ### `storable()`
 
 Returns `true` if the response can be stored in a cache. If it's `false` then you MUST NOT store either the request or the response.
+
+### `satisfiesWithoutRevalidation(request)`
+
+If it returns `true`, then the given `request` matches the original response this cache policy has been created with, and the response can be reused without contacting the server. Note that the old response can't be returned without being updated, see `responseHeaders()`.
+
+If it returns `false`, then the response may not be matching at all (e.g. it's for a different URL or method), or may require to be refreshed first.
+
+### `responseHeaders()`
+
+Returns updated, filtered set of response headers. Proxies MUST always remove hop-by-hop headers (such as `TE` and `Connection`) and update response age to avoid doubling cache time.
 
 ### `stale()`
 

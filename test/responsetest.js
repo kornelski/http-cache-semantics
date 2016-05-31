@@ -247,4 +247,35 @@ describe('Response headers', function() {
         assert(!cache.stale());
         assert.equal(333, cache.maxAge());
     });
+
+    it('remove hop headers', function() {
+        let now = 10000;
+        class TimeTravellingPolicy extends CachePolicy {
+            now() {
+                return now;
+            }
+        }
+
+        const res = {headers:{
+            'te': 'deflate',
+            'date': 'now',
+            'custom': 'header',
+            'oompa': 'lumpa',
+            'connection': 'close, oompa, header',
+            'age': '10',
+            'cache-control': 'public, max-age=333',
+        }};
+        const cache = new TimeTravellingPolicy(req, res);
+
+        now += 1005;
+        const h = cache.responseHeaders();
+        assert(!h.connection);
+        assert(!h.te);
+        assert(!h.oompa);
+        assert.equal(h['cache-control'], 'public, max-age=333');
+        assert.equal(h.date, 'now', "date must stay the same for expires, age, etc");
+        assert.equal(h.custom, 'header');
+        assert.equal(h.age, '11');
+        assert.equal(res.headers.age, '10');
+    });
 });

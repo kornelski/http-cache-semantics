@@ -5,6 +5,8 @@ const statusCodeCacheableByDefault = [200, 203, 204, 206, 300, 301, 404, 405, 41
 // This implementation does not understand partial responses (206)
 const understoodStatuses = [200, 204, 301, 302, 303, 404, 410, 501];
 
+const hopByHopHeaders = {'connection':true, 'keep-alive':true, 'proxy-authenticate':true, 'proxy-authorization':true, 'te':true, 'trailers':true, 'transfer-encoding':true, 'upgrade':true};
+
 function parseCacheControl(header) {
     const cc = {};
     if (!header) return cc;
@@ -131,6 +133,23 @@ CachePolicy.prototype = {
             if (req.headers[name] !== this._reqHeaders[name]) return false;
         }
         return true;
+    },
+
+    responseHeaders() {
+        const headers = {};
+        for(const name in this._resHeaders) {
+            if (hopByHopHeaders[name]) continue;
+            headers[name] = this._resHeaders[name];
+        }
+        // 9.1.  Connection
+        if (this._resHeaders.connection) {
+            const tokens = this._resHeaders.connection.trim().split(/\s*,\s*/);
+            for(const name of tokens) {
+                delete headers[name];
+            }
+        }
+        headers.age = `${Math.round(this.age())}`;
+        return headers;
     },
 
     /**

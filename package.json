@@ -1,6 +1,6 @@
 {
   "name": "http-cache-semantics",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Parses Cache-Control headers and friends",
   "main": "index.js",
   "repository": "https://github.com/pornel/http-cache-semantics.git",
