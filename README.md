@@ -68,7 +68,11 @@ Returns `true` if the response can be stored in a cache. If it's `false` then yo
 
 Returns `true` if the response is stale (i.e. not fresh).
 
-It generally means the response can't be used any more without revalidation with the server. However, there are exceptions, e.g. a client can explicitly allow stale responses. A fresh response still may not be used if other conditions—such as `Vary`—are not satisfied.
+It generally means the response can't be used any more without revalidation with the server. However, there are exceptions, e.g. a client can explicitly allow stale responses.
+
+### `timeToLive()`
+
+Returns number of *milliseconds* until the response becomes stale. After that time (when `timeToLive() <= 0`) the response won't be usable without revalidation.
 
 # Yo, FRESH
 

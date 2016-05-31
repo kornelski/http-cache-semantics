@@ -212,6 +212,10 @@ CachePolicy.prototype = {
         return 0;
     },
 
+    timeToLive() {
+        return Math.max(0, this.maxAge() - this.age())*1000;
+    },
+
     stale() {
         return this.maxAge() <= this.age();
     },

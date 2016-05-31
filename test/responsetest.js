@@ -61,11 +61,14 @@ describe('Response headers', function() {
         }});
         assert(cache.storable());
 
+        assert.equal(50*1000, cache.timeToLive());
         assert(!cache.stale());
         now += 48*1000;
+        assert.equal(2*1000, cache.timeToLive());
         assert(!cache.stale());
         now += 5*1000;
         assert(cache.stale());
+        assert.equal(0, cache.timeToLive());
     });
 
     it('Age can make stale', function() {
