@@ -55,6 +55,14 @@ describe('Vary', function() {
         assert(!policy.satisfiesWithoutRevalidation({headers:{'sun': 'shining', 'weather': 'bad'}}));
     });
 
+    it('Whitespace is OK', function() {
+        const policy = new CachePolicy({headers:{'sun': 'shining', 'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'    weather       ,     sun     '}});
+
+        assert(policy.satisfiesWithoutRevalidation({headers:{'sun': 'shining', 'weather': 'nice'}}));
+        assert(!policy.satisfiesWithoutRevalidation({headers:{'weather': 'nice'}}));
+        assert(!policy.satisfiesWithoutRevalidation({headers:{'sun': 'shining'}}));
+    });
+
     it('Order is irrelevant', function() {
         const policy1 = new CachePolicy({headers:{'sun': 'shining', 'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'weather, sun'}});
         const policy2 = new CachePolicy({headers:{'sun': 'shining', 'weather': 'nice'}}, {headers:{'cache-control':'max-age=5','vary':'sun, weather'}});

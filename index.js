@@ -11,9 +11,9 @@ function parseCacheControl(header) {
 
     // TODO: When there is more than one value present for a given directive (e.g., two Expires header fields, multiple Cache-Control: max-age directives),
     // the directive's value is considered invalid. Caches are encouraged to consider responses that have invalid freshness information to be stale
-    const parts = header.split(/\s*,\s*/); // TODO: lame parsing
+    const parts = header.trim().split(/\s*,\s*/); // TODO: lame parsing
     for(const part of parts) {
-        const [k,v] = part.split(/\s*=\s*/);
+        const [k,v] = part.split(/\s*=\s*/, 2);
         cc[k] = (v === undefined) ? true : v.replace(/^"|"$/g, ''); // TODO: lame unquoting
     }
 
@@ -128,7 +128,7 @@ CachePolicy.prototype = {
             return false;
         }
 
-        const fields = this._resHeaders.vary.toLowerCase().split(/\s*,\s*/);
+        const fields = this._resHeaders.vary.trim().toLowerCase().split(/\s*,\s*/);
         for(const name of fields) {
             if (req.headers[name] !== this._reqHeaders[name]) return false;
         }

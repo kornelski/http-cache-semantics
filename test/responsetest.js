@@ -17,6 +17,18 @@ describe('Response headers', function() {
         assert.equal(cache.maxAge(), 999999);
     });
 
+    it('weird syntax', function() {
+        const cache = new CachePolicy(req, {headers:{'cache-control': ',,,,max-age =  456      ,'}});
+        assert(!cache.stale());
+        assert.equal(cache.maxAge(), 456);
+    });
+
+    it('quoted syntax', function() {
+        const cache = new CachePolicy(req, {headers:{'cache-control': '  max-age = "678"      '}});
+        assert(!cache.stale());
+        assert.equal(cache.maxAge(), 678);
+    });
+
     it('cache with expires', function() {
         const cache = new CachePolicy(req, {headers:{
             'date': new Date().toGMTString(),
