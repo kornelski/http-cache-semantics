@@ -12,7 +12,7 @@ const secondsFresh = cache.maxAge();
 const secondsOld = cache.age();
 
 // Current state
-const currentState = cache.isFresh();
+const outOfDate = cache.stale();
 ```
 
 Cacheability of response depends on how it was requested, so both request and response are required. Both are objects with `headers` property that is an object with lowercased header names as keys, e.g.
@@ -38,6 +38,12 @@ const options = {
 ```
 
 If `options.shared` is true (default), then response is evaluated from perspective of a shared cache (i.e. `private` is not cacheable and `s-maxage` is respected). If `options.shared` is false, then response is evaluated from perspective of a single-user cache (i.e. `private` is cacheable and `s-maxage` is ignored).
+
+### `stale()`
+
+Returns `true` if the response is stale (i.e. not fresh).
+
+It generally means the response can't be used any more without revalidation with the server. However, there are exceptions, e.g. client can explicitly allow stale responses. A fresh response still may not be used if other conditions—such as `Vary`—are not satisfied.
 
 ## Implemented
 

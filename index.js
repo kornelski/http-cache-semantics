@@ -170,8 +170,8 @@ CachePolicy.prototype = {
         return 0;
     },
 
-    isFresh() {
-        return this.maxAge() > this.age();
+    stale() {
+        return this.maxAge() <= this.age();
     },
 };
 

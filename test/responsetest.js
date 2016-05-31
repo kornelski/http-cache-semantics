@@ -8,12 +8,12 @@ const req = {method:'GET', headers:{}};
 describe('Response headers', function() {
     it('simple miss', function() {
         const cache = new CachePolicy(req, {headers:{}});
-        assert(!cache.isFresh());
+        assert(cache.stale());
     });
 
     it('simple hit', function() {
         const cache = new CachePolicy(req, {headers:{'cache-control': 'public, max-age=999999'}});
-        assert(cache.isFresh());
+        assert(!cache.stale());
         assert.equal(cache.maxAge(), 999999);
     });
 
@@ -22,7 +22,7 @@ describe('Response headers', function() {
             'date': new Date().toGMTString(),
             'expires': new Date(Date.now() + 2000).toGMTString(),
         }});
-        assert(cache.isFresh());
+        assert(!cache.stale());
         assert.equal(2, cache.maxAge());
     });
 
@@ -31,7 +31,7 @@ describe('Response headers', function() {
             'cache-control': 'public',
             'expires': new Date(Date.now()+3600*1000).toGMTString(),
         }});
-        assert(cache.isFresh());
+        assert(!cache.stale());
         assert(cache.maxAge() > 3595);
         assert(cache.maxAge() < 3605);
     });
@@ -41,7 +41,7 @@ describe('Response headers', function() {
             'date': new Date().toGMTString(),
             'last-modified': 'Mon, 07 Mar 2016 11:52:56 GMT',
         }});
-        assert(cache.isFresh());
+        assert(!cache.stale());
         assert(cache.maxAge() > 100);
     });
 
@@ -50,14 +50,14 @@ describe('Response headers', function() {
             'pragma': 'no-cache',
             'last-modified': 'Mon, 07 Mar 2016 11:52:56 GMT',
         }});
-        assert(!cache.isFresh());
+        assert(cache.stale());
     });
 
     it('no-store', function() {
         const cache = new CachePolicy(req, {headers:{
             'cache-control': 'no-store, public, max-age=1',
         }});
-        assert(!cache.isFresh());
+        assert(cache.stale());
         assert.equal(0, cache.maxAge());
     });
 
@@ -66,11 +66,11 @@ describe('Response headers', function() {
             'cache-control': 'private, max-age=1234',
         };
         const proxyCache = new CachePolicy(req, {headers:privateHeader});
-        assert(!proxyCache.isFresh());
+        assert(proxyCache.stale());
         assert.equal(0, proxyCache.maxAge());
 
         const uaCache = new CachePolicy(req, {headers:privateHeader}, {shared:false});
-        assert(uaCache.isFresh());
+        assert(!uaCache.stale());
         assert.equal(1234, uaCache.maxAge());
     });
 
@@ -80,11 +80,11 @@ describe('Response headers', function() {
             'cache-control': 'max-age=99',
         };
         const proxyCache = new CachePolicy(req, {headers:cookieHeader}, {shared:true});
-        assert(!proxyCache.isFresh());
+        assert(proxyCache.stale());
         assert.equal(0, proxyCache.maxAge());
 
         const uaCache = new CachePolicy(req, {headers:cookieHeader}, {shared:false});
-        assert(uaCache.isFresh());
+        assert(!uaCache.stale());
         assert.equal(99, uaCache.maxAge());
     });
 
@@ -94,7 +94,7 @@ describe('Response headers', function() {
             'cache-control': 'max-age=5, public',
         };
         const proxyCache = new CachePolicy(req, {headers:cookieHeader}, {shared:true});
-        assert(proxyCache.isFresh());
+        assert(!proxyCache.stale());
         assert.equal(5, proxyCache.maxAge());
     });
 
@@ -102,7 +102,7 @@ describe('Response headers', function() {
         const cache = new CachePolicy(req, {headers:{
             'cache-control': 'public, max-age=0',
         }});
-        assert(!cache.isFresh());
+        assert(cache.stale());
         assert.equal(0, cache.maxAge());
     });
 
@@ -112,7 +112,7 @@ describe('Response headers', function() {
             headers:{
                 'cache-control': 'public, max-age=1000',
             }});
-        assert(!cache.isFresh());
+        assert(cache.stale());
         assert.equal(0, cache.maxAge());
     });
 
@@ -122,7 +122,7 @@ describe('Response headers', function() {
             headers:{
                 'last-modified': 'Mon, 07 Mar 2016 11:52:56 GMT',
             }});
-        assert(cache.isFresh());
+        assert(!cache.stale());
     });
 
     it('uncacheable 303', function() {
@@ -131,7 +131,7 @@ describe('Response headers', function() {
             headers:{
                 'last-modified': 'Mon, 07 Mar 2016 11:52:56 GMT',
             }});
-        assert(!cache.isFresh());
+        assert(cache.stale());
         assert.equal(0, cache.maxAge());
     });
 
@@ -141,7 +141,7 @@ describe('Response headers', function() {
             headers:{
                 'cache-control': 'max-age=1000',
             }});
-        assert(cache.isFresh());
+        assert(!cache.stale());
     });
 
     it('uncacheable 412', function() {
@@ -150,7 +150,7 @@ describe('Response headers', function() {
             headers:{
                 'cache-control': 'public, max-age=1000',
             }});
-        assert(!cache.isFresh());
+        assert(cache.stale());
         assert.equal(0, cache.maxAge());
     });
 
@@ -159,7 +159,7 @@ describe('Response headers', function() {
             'cache-control': 'public, max-age=9999',
             'expires': 'Sat, 07 May 2016 15:35:18 GMT',
         }});
-        assert(cache.isFresh());
+        assert(!cache.stale());
         assert.equal(9999, cache.maxAge());
     });
 
@@ -169,11 +169,11 @@ describe('Response headers', function() {
             'expires': 'Sat, 07 May 2016 15:35:18 GMT',
         };
         const proxyCache = new CachePolicy(req, {headers:sMaxAgeHeaders});
-        assert(proxyCache.isFresh());
+        assert(!proxyCache.stale());
         assert.equal(9999, proxyCache.maxAge());
 
         const uaCache = new CachePolicy(req, {headers:sMaxAgeHeaders}, {shared:false});
-        assert(!uaCache.isFresh());
+        assert(uaCache.stale());
         assert.equal(0, uaCache.maxAge());
     });
 
@@ -182,7 +182,7 @@ describe('Response headers', function() {
             'cache-control': 'public, max-age=333',
             'expires': new Date(Date.now()+3600*1000).toGMTString(),
         }});
-        assert(cache.isFresh());
+        assert(!cache.stale());
         assert.equal(333, cache.maxAge());
     });
 });
