@@ -48,6 +48,53 @@ describe('Response headers', function() {
         assert(cache.maxAge() < 3605);
     });
 
+    it('Ages', function() {
+        let now = 1000;
+        class TimeTravellingPolicy extends CachePolicy {
+            now() {
+                return now;
+            }
+        }
+        const cache = new TimeTravellingPolicy(req, {headers:{
+            'cache-control':'max-age=100',
+            'age': '50',
+        }});
+        assert(cache.storable());
+
+        assert(!cache.stale());
+        now += 48*1000;
+        assert(!cache.stale());
+        now += 5*1000;
+        assert(cache.stale());
+    });
+
+    it('Age can make stale', function() {
+        const cache = new CachePolicy(req, {headers:{
+            'cache-control':'max-age=100',
+            'age': '101',
+        }});
+        assert(cache.stale());
+        assert(cache.storable());
+    });
+
+    it('Age not always stale', function() {
+        const cache = new CachePolicy(req, {headers:{
+            'cache-control':'max-age=20',
+            'age': '15',
+        }});
+        assert(!cache.stale());
+        assert(cache.storable());
+    });
+
+    it('Bogus age ignored', function() {
+        const cache = new CachePolicy(req, {headers:{
+            'cache-control':'max-age=20',
+            'age': 'golden',
+        }});
+        assert(!cache.stale());
+        assert(cache.storable());
+    });
+
     it('cache old files', function() {
         const cache = new CachePolicy(req, {headers:{
             'date': new Date().toGMTString(),
