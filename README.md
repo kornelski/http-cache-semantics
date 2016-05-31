@@ -45,6 +45,12 @@ Returns `true` if the response is stale (i.e. not fresh).
 
 It generally means the response can't be used any more without revalidation with the server. However, there are exceptions, e.g. client can explicitly allow stale responses. A fresh response still may not be used if other conditions—such as `Vary`—are not satisfied.
 
+### `cacheKey()`
+
+Returns a string that is a combination of method, URL, and headers selected with `Vary`.
+
+Note that `Vary: *` never matches any request, so matching of cache keys alone is not sufficient to satisfy a request.
+
 ## Implemented
 
 * `Expires` with check for bad clocks
@@ -52,8 +58,8 @@ It generally means the response can't be used any more without revalidation with
 * `Pragma` response header
 * `Age` response header
 * Default cacheability of statuses and methods
+* Basic support for `Vary`
 
 ## Unimplemented
 
-* `Vary` support is as lame and incomplete as in web browsers
 * No support for revalidation and stale responses

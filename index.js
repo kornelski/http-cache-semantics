@@ -93,6 +93,22 @@ CachePolicy.prototype = {
         return this._rescc['must-revalidate'] || this._rescc['public'] || this._rescc['s-maxage'];
     },
 
+    _varyKeyForRequest(req) {
+        if (!this._res.headers.vary) return '';
+
+        let key = '';
+        const fields = this._res.headers.vary.toLowerCase().split(/\s*,\s*/);
+        fields.sort();
+        for(const name of fields) {
+            key += `${name}:${req.headers[name] || '÷'}\n`;
+        }
+        return key;
+    },
+
+    cacheKey() {
+        return `${this._req.method || 'GET'} ${this._req.url || ''} ${this._varyKeyForRequest(this._req)}`;
+    },
+
     /**
      * Value of the Date response header or current time if Date was demed invalid
      * @return timestamp
@@ -134,8 +150,7 @@ CachePolicy.prototype = {
             return 0;
         }
 
-        // TODO: vary is not supported yet
-        if (this._res.headers['vary']) {
+        if (this._res.headers.vary === '*') {
             return 0;
         }
 
