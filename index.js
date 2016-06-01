@@ -39,7 +39,9 @@ function CachePolicy(req, res, {shared, cacheHeuristic} = {}) {
     this._rescc = parseCacheControl(res.headers['cache-control']);
     this._method = 'method' in req ? req.method : 'GET';
     this._url = req.url;
-    this._reqHeaders = req.headers;
+    this._host = req.headers.host;
+    this._noAuthorization = !req.headers.authorization;
+    this._reqHeaders = res.headers.vary ? req.headers : null; // Don't keep all request headers if they won't be used
     this._reqcc = parseCacheControl(req.headers['cache-control']);
 
     // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive
@@ -67,7 +69,7 @@ CachePolicy.prototype = {
             // the "private" response directive does not appear in the response, if the cache is shared, and
             (!this._isShared || !this._rescc.private) &&
             // the Authorization header field does not appear in the request, if the cache is shared,
-            (!this._isShared || !this._reqHeaders.authorization || this._allowsStoringAuthenticated()) &&
+            (!this._isShared || this._noAuthorization || this._allowsStoringAuthenticated()) &&
             // the response either:
             (
                 // contains an Expires header field, or
@@ -103,7 +105,7 @@ CachePolicy.prototype = {
 
         // The presented effective request URI and that of the stored response match, and
         return (!this._url || this._url === req.url) &&
-            (this._reqHeaders.host === req.headers.host) &&
+            (this._host === req.headers.host) &&
             // the request method associated with the stored response allows it to be used for the presented request, and
             (!req.method || this._method === req.method) &&
             // selecting header fields nominated by the stored response (if any) match those presented, and
@@ -124,7 +126,7 @@ CachePolicy.prototype = {
         }
 
         // A Vary header field-value of "*" always fails to match
-        if (this._reqHeaders.vary === '*') {
+        if (this._resHeaders.vary === '*') {
             return false;
         }
 
