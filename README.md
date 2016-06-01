@@ -1,6 +1,6 @@
 # Can I cache this?
 
-`CachePolicy` implements HTTP cache semantics. It can tell when responses can be reused from cache, taking into account [RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. It's aware of many tricky details such as the `Vary` header, proxy revalidation, authenticated responses.
+`CachePolicy` can tell when responses can be reused from cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
 
 ## Usage
 
