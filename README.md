@@ -76,6 +76,10 @@ It generally means the response can't be used any more without revalidation with
 
 Returns number of *milliseconds* until the response becomes stale. After that time (when `timeToLive() <= 0`) the response won't be usable without revalidation.
 
+### `toObject()`/`fromObject(json)`
+
+Chances are you'll want to store the `CachePolicy` object along with the cached response. `obj = policy.toObject()` gives a plain JSON-serializable object. `policy = CachePolicy.fromObject(obj)` creates an instance from it.
+
 # Yo, FRESH
 
 ![satisfiesWithoutRevalidation](fresh.jpg)

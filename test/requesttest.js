@@ -35,6 +35,11 @@ describe('Request properties', function() {
         const cache = new CachePolicy({method:'GET',headers:{'authorization': 'test'}}, {headers:{'cache-control':'max-age=0,s-maxage=12'}});
         assert(!cache.stale());
         assert(cache.storable());
+
+        const cache2 = CachePolicy.fromObject(JSON.parse(JSON.stringify(cache.toObject())));
+        assert(cache2 instanceof CachePolicy);
+        assert(!cache2.stale());
+        assert(cache2.storable());
     });
 
     it('Private auth is OK', function() {

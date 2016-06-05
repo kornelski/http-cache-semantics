@@ -21,6 +21,11 @@ describe('Response headers', function() {
         const cache = new CachePolicy(req, {headers:{'cache-control': ',,,,max-age =  456      ,'}});
         assert(!cache.stale());
         assert.equal(cache.maxAge(), 456);
+
+        const cache2 = CachePolicy.fromObject(JSON.parse(JSON.stringify(cache.toObject())));
+        assert(cache2 instanceof CachePolicy);
+        assert(!cache2.stale());
+        assert.equal(cache2.maxAge(), 456);
     });
 
     it('quoted syntax', function() {
@@ -277,5 +282,10 @@ describe('Response headers', function() {
         assert.equal(h.custom, 'header');
         assert.equal(h.age, '11');
         assert.equal(res.headers.age, '10');
+
+        const cache2 = TimeTravellingPolicy.fromObject(JSON.parse(JSON.stringify(cache.toObject())));
+        assert(cache2 instanceof TimeTravellingPolicy);
+        const h2 = cache2.responseHeaders();
+        assert.deepEqual(h, h2);
     });
 });

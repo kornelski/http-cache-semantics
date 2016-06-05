@@ -23,7 +23,12 @@ function parseCacheControl(header) {
 }
 
 module.exports = class CachePolicy {
-    constructor(req, res, {shared, cacheHeuristic} = {}) {
+    constructor(req, res, {shared, cacheHeuristic, _fromObject} = {}) {
+        if (_fromObject) {
+            this._fromObject(_fromObject);
+            return;
+        }
+
         if (!res || !res.headers) {
             throw Error("Response headers missing");
         }
@@ -239,5 +244,45 @@ module.exports = class CachePolicy {
 
     stale() {
         return this.maxAge() <= this.age();
+    }
+
+    static fromObject(obj) {
+        return new this(undefined, undefined, {_fromObject:obj});
+    }
+
+    _fromObject(obj) {
+        if (this._responseTime) throw Error("Reinitialized");
+        if (!obj || obj.v !== 1) throw Error("Invalid serialization");
+
+        this._responseTime = obj.t;
+        this._isShared = obj.sh;
+        this._cacheHeuristic = obj.ch;
+        this._status = obj.st;
+        this._resHeaders = obj.resh;
+        this._rescc = obj.rescc;
+        this._method = obj.m;
+        this._url = obj.u;
+        this._host = obj.h;
+        this._noAuthorization = obj.a;
+        this._reqHeaders = obj.reqh;
+        this._reqcc = obj.reqcc;
+    }
+
+    toObject() {
+        return {
+            v:1,
+            t: this._responseTime,
+            sh: this._isShared,
+            ch: this._cacheHeuristic,
+            st: this._status,
+            resh: this._resHeaders,
+            rescc: this._rescc,
+            m: this._method,
+            u: this._url,
+            h: this._host,
+            a: this._noAuthorization,
+            reqh: this._reqHeaders,
+            reqcc: this._reqcc,
+        };
     }
 };
