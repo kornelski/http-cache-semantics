@@ -22,39 +22,39 @@ function parseCacheControl(header) {
     return cc;
 }
 
-function CachePolicy(req, res, {shared, cacheHeuristic} = {}) {
-    if (!res || !res.headers) {
-        throw Error("Response headers missing");
+module.exports = class CachePolicy {
+    constructor(req, res, {shared, cacheHeuristic} = {}) {
+        if (!res || !res.headers) {
+            throw Error("Response headers missing");
+        }
+        if (!req || !req.headers) {
+            throw Error("Request headers missing");
+        }
+
+        this._responseTime = this.now();
+        this._isShared = shared !== false;
+        this._cacheHeuristic = undefined !== cacheHeuristic ? cacheHeuristic : 0.1; // 10% matches IE
+
+        this._status = 'status' in res ? res.status : 200;
+        this._resHeaders = res.headers;
+        this._rescc = parseCacheControl(res.headers['cache-control']);
+        this._method = 'method' in req ? req.method : 'GET';
+        this._url = req.url;
+        this._host = req.headers.host;
+        this._noAuthorization = !req.headers.authorization;
+        this._reqHeaders = res.headers.vary ? req.headers : null; // Don't keep all request headers if they won't be used
+        this._reqcc = parseCacheControl(req.headers['cache-control']);
+
+        // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive
+        // as having the same effect as if "Cache-Control: no-cache" were present (see Section 5.2.1).
+        if (!res.headers['cache-control'] && /no-cache/.test(res.headers.pragma)) {
+            this._rescc['no-cache'] = true;
+        }
     }
-    if (!req || !req.headers) {
-        throw Error("Request headers missing");
-    }
 
-    this._responseTime = this.now();
-    this._isShared = shared !== false;
-    this._cacheHeuristic = undefined !== cacheHeuristic ? cacheHeuristic : 0.1; // 10% matches IE
-
-    this._status = 'status' in res ? res.status : 200;
-    this._resHeaders = res.headers;
-    this._rescc = parseCacheControl(res.headers['cache-control']);
-    this._method = 'method' in req ? req.method : 'GET';
-    this._url = req.url;
-    this._host = req.headers.host;
-    this._noAuthorization = !req.headers.authorization;
-    this._reqHeaders = res.headers.vary ? req.headers : null; // Don't keep all request headers if they won't be used
-    this._reqcc = parseCacheControl(req.headers['cache-control']);
-
-    // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive
-    // as having the same effect as if "Cache-Control: no-cache" were present (see Section 5.2.1).
-    if (!res.headers['cache-control'] && /no-cache/.test(res.headers.pragma)) {
-        this._rescc['no-cache'] = true;
-    }
-}
-
-CachePolicy.prototype = {
     now() {
         return Date.now();
-    },
+    }
 
     storable() {
         // The "no-store" request directive indicates that a cache MUST NOT store any part of either this request or any response to it.
@@ -81,14 +81,14 @@ CachePolicy.prototype = {
                 // has a status code that is defined as cacheable by default
                 statusCodeCacheableByDefault.includes(this._status)
             );
-    },
+    }
 
     _hasExplicitExpiration() {
         // 4.2.1 Calculating Freshness Lifetime
         return (this._isShared && this._rescc['s-maxage']) ||
             this._rescc['max-age'] ||
             this._resHeaders.expires;
-    },
+    }
 
     satisfiesWithoutRevalidation(req) {
         if (!req || !req.headers) {
@@ -113,12 +113,12 @@ CachePolicy.prototype = {
             // the stored response is either:
             // fresh, or allowed to be served stale
             !this.stale() // TODO: allow stale
-    },
+    }
 
     _allowsStoringAuthenticated() {
         //  following Cache-Control response directives (Section 5.2.2) have such an effect: must-revalidate, public, and s-maxage.
         return this._rescc['must-revalidate'] || this._rescc.public || this._rescc['s-maxage'];
-    },
+    }
 
     _varyMatches(req) {
         if (!this._resHeaders.vary) {
@@ -135,7 +135,7 @@ CachePolicy.prototype = {
             if (req.headers[name] !== this._reqHeaders[name]) return false;
         }
         return true;
-    },
+    }
 
     responseHeaders() {
         const headers = {};
@@ -152,7 +152,7 @@ CachePolicy.prototype = {
         }
         headers.age = `${Math.round(this.age())}`;
         return headers;
-    },
+    }
 
     /**
      * Value of the Date response header or current time if Date was demed invalid
@@ -165,7 +165,7 @@ CachePolicy.prototype = {
             return this._responseTime;
         }
         return dateValue;
-    },
+    }
 
     /**
      * Value of the Age header, in seconds, updated for the current time
@@ -182,7 +182,7 @@ CachePolicy.prototype = {
 
         const residentTime = (this.now() - this._responseTime)/1000;
         return age + residentTime;
-    },
+    }
 
     maxAge() {
         if (!this.storable() || this._rescc['no-cache']) {
@@ -231,15 +231,13 @@ CachePolicy.prototype = {
             }
         }
         return 0;
-    },
+    }
 
     timeToLive() {
         return Math.max(0, this.maxAge() - this.age())*1000;
-    },
+    }
 
     stale() {
         return this.maxAge() <= this.age();
-    },
+    }
 };
-
-module.exports = CachePolicy;
