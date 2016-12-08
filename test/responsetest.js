@@ -65,6 +65,21 @@ describe('Response headers', function() {
         assert(!cache.responseHeaders()['pragma']);
     });
 
+    it('pre-check poison undefined header', function() {
+        const origCC = 'pre-check=0, post-check=0, no-cache, no-store';
+        const res = {headers:{'cache-control': origCC, expires: 'yesterday!'}};
+        const cache = new CachePolicy(req, res, {ignoreCargoCult:true});
+        assert(cache.stale());
+        assert(cache.storable());
+        assert.equal(cache.maxAge(), 0);
+
+        const cc = cache.responseHeaders()['cache-control'];
+        assert(!cc);
+
+        assert(res.headers['expires']);
+        assert(!cache.responseHeaders()['expires']);
+    });
+
     it('cache with expires', function() {
         const cache = new CachePolicy(req, {headers:{
             'date': new Date().toGMTString(),

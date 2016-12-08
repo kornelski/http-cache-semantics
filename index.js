@@ -28,6 +28,9 @@ function formatCacheControl(cc) {
         const v = cc[k];
         parts.push(v === true ? k : k + '=' + v);
     }
+    if (!parts.length) {
+        return undefined;
+    }
     return parts.join(', ');
 }
 
@@ -68,6 +71,7 @@ module.exports = class CachePolicy {
             delete this._rescc['no-store'];
             delete this._rescc['must-revalidate'];
             this._resHeaders = Object.assign({}, this._resHeaders, {'cache-control': formatCacheControl(this._rescc)});
+            delete this._resHeaders['expires'];
             delete this._resHeaders['pragma'];
         }
 
