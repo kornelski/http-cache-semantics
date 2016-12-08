@@ -22,6 +22,15 @@ function parseCacheControl(header) {
     return cc;
 }
 
+function formatCacheControl(cc) {
+    let parts = [];
+    for(const k in cc) {
+        const v = cc[k];
+        parts.push(v === true ? k : k + '=' + v);
+    }
+    return parts.join(', ');
+}
+
 module.exports = class CachePolicy {
     constructor(req, res, {shared, cacheHeuristic, ignoreCargoCult, _fromObject} = {}) {
         if (_fromObject) {
@@ -53,9 +62,12 @@ module.exports = class CachePolicy {
         // Assume that if someone uses legacy, non-standard uncecessary options they don't understand caching,
         // so there's no point stricly adhering to the blindly copy&pasted directives.
         if (ignoreCargoCult && "pre-check" in this._rescc && "post-check" in this._rescc) {
+            delete this._rescc['pre-check'];
+            delete this._rescc['post-check'];
             delete this._rescc['no-cache'];
             delete this._rescc['no-store'];
             delete this._rescc['must-revalidate'];
+            this._resHeaders = Object.assign({}, this._resHeaders, {'cache-control': formatCacheControl(this._rescc)});
         }
 
         // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive

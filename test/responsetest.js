@@ -35,17 +35,32 @@ describe('Response headers', function() {
     });
 
     it('pre-check tolerated', function() {
-        const cache = new CachePolicy(req, {headers:{'cache-control': 'pre-check=0, post-check=0, no-store, no-cache, max-age=100'}});
+        const cc = 'pre-check=0, post-check=0, no-store, no-cache, max-age=100';
+        const cache = new CachePolicy(req, {headers:{'cache-control': cc}});
         assert(cache.stale());
         assert(!cache.storable());
         assert.equal(cache.maxAge(), 0);
+        assert.equal(cache.responseHeaders()['cache-control'], cc);
     });
 
     it('pre-check poison', function() {
-        const cache = new CachePolicy(req, {headers:{'cache-control': 'pre-check=0, post-check=0, no-cache, no-store, max-age=100'}}, {ignoreCargoCult:true});
+        const origCC = 'pre-check=0, post-check=0, no-cache, no-store, max-age=100, custom, foo=bar';
+        const res = {headers:{'cache-control': origCC}};
+        const cache = new CachePolicy(req, res, {ignoreCargoCult:true});
         assert(!cache.stale());
         assert(cache.storable());
         assert.equal(cache.maxAge(), 100);
+
+        const cc = cache.responseHeaders()['cache-control'];
+        assert(!/pre-check/.test(cc), cc);
+        assert(!/post-check/.test(cc), cc);
+        assert(!/no-store/.test(cc), cc);
+
+        assert(/max-age=100/.test(cc));
+        assert(/custom(,|$)/.test(cc));
+        assert(/foo=bar/.test(cc));
+
+        assert.equal(res.headers['cache-control'], origCC);
     });
 
     it('cache with expires', function() {
