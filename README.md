@@ -11,10 +11,22 @@ const policy = new CachePolicy(request, response, options);
 
 if (!policy.storable()) {
     // throw the response away, it's not usable at all
+    return;
 }
 
-if (policy.satisfiesWithoutRevalidation(newRequest)) {
-    // the previous `response` can be used to respond to the `newRequest`
+// Cache the data AND the policy object in your cache
+// (this is pseudocode, roll your own cache (lru-cache package works))
+letsPretendThisIsSomeCache.set(request.url, {policy, response}, policy.timeToLive());
+```
+
+```js
+// And later, when you receive a new request:
+const {policy, response} = letsPretendThisIsSomeCache.get(newRequest.url);
+
+// It's not enough that it exists in the cache, it has to match the new request, too:
+if (policy && policy.satisfiesWithoutRevalidation(newRequest)) {
+    // OK, the previous `response` can be used to respond to the `newRequest`
+    return response;
 }
 ```
 
