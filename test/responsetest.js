@@ -34,6 +34,20 @@ describe('Response headers', function() {
         assert.equal(cache.maxAge(), 678);
     });
 
+    it('pre-check tolerated', function() {
+        const cache = new CachePolicy(req, {headers:{'cache-control': 'pre-check=0, post-check=0, no-store, no-cache, max-age=100'}});
+        assert(cache.stale());
+        assert(!cache.storable());
+        assert.equal(cache.maxAge(), 0);
+    });
+
+    it('pre-check poison', function() {
+        const cache = new CachePolicy(req, {headers:{'cache-control': 'pre-check=0, post-check=0, no-cache, no-store, max-age=100'}}, {ignoreCargoCult:true});
+        assert(!cache.stale());
+        assert(cache.storable());
+        assert.equal(cache.maxAge(), 100);
+    });
+
     it('cache with expires', function() {
         const cache = new CachePolicy(req, {headers:{
             'date': new Date().toGMTString(),

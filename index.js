@@ -23,7 +23,7 @@ function parseCacheControl(header) {
 }
 
 module.exports = class CachePolicy {
-    constructor(req, res, {shared, cacheHeuristic, _fromObject} = {}) {
+    constructor(req, res, {shared, cacheHeuristic, ignoreCargoCult, _fromObject} = {}) {
         if (_fromObject) {
             this._fromObject(_fromObject);
             return;
@@ -49,6 +49,14 @@ module.exports = class CachePolicy {
         this._noAuthorization = !req.headers.authorization;
         this._reqHeaders = res.headers.vary ? req.headers : null; // Don't keep all request headers if they won't be used
         this._reqcc = parseCacheControl(req.headers['cache-control']);
+
+        // Assume that if someone uses legacy, non-standard uncecessary options they don't understand caching,
+        // so there's no point stricly adhering to the blindly copy&pasted directives.
+        if (ignoreCargoCult && "pre-check" in this._rescc && "post-check" in this._rescc) {
+            delete this._rescc['no-cache'];
+            delete this._rescc['no-store'];
+            delete this._rescc['must-revalidate'];
+        }
 
         // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive
         // as having the same effect as if "Cache-Control: no-cache" were present (see Section 5.2.1).

@@ -52,6 +52,8 @@ If `options.shared` is true (default), then response is evaluated from perspecti
 
 `options.cacheHeuristic` is a fraction of response's age that is used as a fallback cache duration. The default is 0.1 (10%), e.g. if a file hasn't been modified for 100 days, it'll be cached for 100*0.1 = 10 days.
 
+If `options.ignoreCargoCult` is true, common anti-cache directives will be completely ignored if the `pre-check` and `post-check` directives are present. These two useless directives are most commonly found in bad StackOverflow answers and PHP's "session limiter" defaults.
+
 ### `storable()`
 
 Returns `true` if the response can be stored in a cache. If it's `false` then you MUST NOT store either the request or the response.
