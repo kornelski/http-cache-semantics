@@ -71,8 +71,8 @@ module.exports = class CachePolicy {
             delete this._rescc['no-store'];
             delete this._rescc['must-revalidate'];
             this._resHeaders = Object.assign({}, this._resHeaders, {'cache-control': formatCacheControl(this._rescc)});
-            delete this._resHeaders['expires'];
-            delete this._resHeaders['pragma'];
+            delete this._resHeaders.expires;
+            delete this._resHeaders.pragma;
         }
 
         // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive
@@ -198,20 +198,25 @@ module.exports = class CachePolicy {
     }
 
     /**
-     * Value of the Age header, in seconds, updated for the current time
+     * Value of the Age header, in seconds, updated for the current time.
+     * May be fractional.
+     *
      * @return Number
      */
     age() {
         let age = Math.max(0, (this._responseTime - this.date())/1000);
         if (this._resHeaders.age) {
-            let ageValue = parseInt(this._resHeaders.age);
-            if (isFinite(ageValue)) {
-                if (ageValue > age) age = ageValue;
-            }
+            let ageValue = this._ageValue();
+            if (ageValue > age) age = ageValue;
         }
 
         const residentTime = (this.now() - this._responseTime)/1000;
         return age + residentTime;
+    }
+
+    _ageValue() {
+        const ageValue = parseInt(this._resHeaders.age);
+        return isFinite(ageValue) ? ageValue : 0;
     }
 
     maxAge() {
