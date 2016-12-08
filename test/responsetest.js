@@ -45,7 +45,7 @@ describe('Response headers', function() {
 
     it('pre-check poison', function() {
         const origCC = 'pre-check=0, post-check=0, no-cache, no-store, max-age=100, custom, foo=bar';
-        const res = {headers:{'cache-control': origCC}};
+        const res = {headers:{'cache-control': origCC, pragma: 'no-cache'}};
         const cache = new CachePolicy(req, res, {ignoreCargoCult:true});
         assert(!cache.stale());
         assert(cache.storable());
@@ -61,6 +61,8 @@ describe('Response headers', function() {
         assert(/foo=bar/.test(cc));
 
         assert.equal(res.headers['cache-control'], origCC);
+        assert(res.headers['pragma']);
+        assert(!cache.responseHeaders()['pragma']);
     });
 
     it('cache with expires', function() {
