@@ -88,7 +88,7 @@ module.exports = class CachePolicy {
 
     storable() {
         // The "no-store" request directive indicates that a cache MUST NOT store any part of either this request or any response to it.
-        return !this._reqcc['no-store'] &&
+        return !!(!this._reqcc['no-store'] &&
             // A cache MUST NOT store a response to any request, unless:
             // The request method is understood by the cache and defined as being cacheable, and
             ('GET' === this._method || 'HEAD' === this._method || ('POST' === this._method && this._hasExplicitExpiration())) &&
@@ -110,7 +110,7 @@ module.exports = class CachePolicy {
                 this._rescc.public || this._rescc['max-age'] || this._rescc['s-maxage'] ||
                 // has a status code that is defined as cacheable by default
                 statusCodeCacheableByDefault.includes(this._status)
-            );
+            ));
     }
 
     _hasExplicitExpiration() {
