@@ -100,13 +100,15 @@ Chances are you'll want to store the `CachePolicy` object along with the cached 
 
 ## Implemented
 
-* `Expires` with check for bad clocks
-* `Cache-Control` response header
-* `Pragma` response header
-* `Age` response header
-* `Vary` response header
-* Default cacheability of statuses and methods
+* `Cache-Control` response header with all the quirks.
+* `Expires` with check for bad clocks.
+* `Pragma` response header.
+* `Age` response header.
+* `Vary` response header.
+* Default cacheability of statuses and methods.
+* Requests for stale data.
+* Filtering of hop-by-hop headers.
 
 ## Unimplemented
 
-* No support for revalidation
+* There's no API for revalidation yet.
