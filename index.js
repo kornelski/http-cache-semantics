@@ -141,16 +141,22 @@ module.exports = class CachePolicy {
             return false;
         }
 
+        // the stored response is either:
+        // fresh, or allowed to be served stale
+        if (this.stale()) {
+            const allowsStale = requestCC['max-stale'] && !this._rescc['must-revalidate'] && (true === requestCC['max-stale'] || requestCC['max-stale'] > this.age() - this.maxAge());
+            if (!allowsStale) {
+                return false;
+            }
+        }
+
         // The presented effective request URI and that of the stored response match, and
         return (!this._url || this._url === req.url) &&
             (this._host === req.headers.host) &&
             // the request method associated with the stored response allows it to be used for the presented request, and
             (!req.method || this._method === req.method) &&
             // selecting header fields nominated by the stored response (if any) match those presented, and
-            this._varyMatches(req) &&
-            // the stored response is either:
-            // fresh, or allowed to be served stale
-            !this.stale() // TODO: allow stale
+            this._varyMatches(req);
     }
 
     _allowsStoringAuthenticated() {

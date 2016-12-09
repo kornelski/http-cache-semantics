@@ -109,4 +109,4 @@ Chances are you'll want to store the `CachePolicy` object along with the cached 
 
 ## Unimplemented
 
-* No support for revalidation and stale responses
+* No support for revalidation
