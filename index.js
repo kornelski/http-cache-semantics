@@ -184,6 +184,16 @@ module.exports = class CachePolicy {
                 delete headers[name];
             }
         }
+        if (headers.warning) {
+            const warnings = headers.warning.split(/,/).filter(warning => {
+                return !/^\s*1[0-9][0-9]/.test(warning);
+            });
+            if (!warnings.length) {
+                delete headers.warning;
+            } else {
+                headers.warning = warnings.join(',').trim();
+            }
+        }
         headers.age = `${Math.round(this.age())}`;
         return headers;
     }
