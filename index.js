@@ -137,6 +137,10 @@ module.exports = class CachePolicy {
             return false;
         }
 
+        if (requestCC['min-fresh'] && this.timeToLive() < 1000*requestCC['min-fresh']) {
+            return false;
+        }
+
         // The presented effective request URI and that of the stored response match, and
         return (!this._url || this._url === req.url) &&
             (this._host === req.headers.host) &&
