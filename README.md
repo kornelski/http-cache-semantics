@@ -1,6 +1,6 @@
 # Can I cache this?
 
-`CachePolicy` can tell when responses can be reused from cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
+`CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
 
 ## Usage
 
@@ -25,7 +25,9 @@ const {policy, response} = letsPretendThisIsSomeCache.get(newRequest.url);
 
 // It's not enough that it exists in the cache, it has to match the new request, too:
 if (policy && policy.satisfiesWithoutRevalidation(newRequest)) {
-    // OK, the previous `response` can be used to respond to the `newRequest`
+    // OK, the previous response can be used to respond to the `newRequest`.
+    // Response headers have to be updated, e.g. to add Age and remove uncacheable headers.
+    response.headers = policy.responseHeaders();
     return response;
 }
 ```
@@ -57,6 +59,7 @@ const response = {
 const options = {
     shared: true,
     cacheHeuristic: 0.1,
+    ignoreCargoCult: false,
 };
 ```
 
@@ -64,7 +67,7 @@ If `options.shared` is true (default), then response is evaluated from perspecti
 
 `options.cacheHeuristic` is a fraction of response's age that is used as a fallback cache duration. The default is 0.1 (10%), e.g. if a file hasn't been modified for 100 days, it'll be cached for 100*0.1 = 10 days.
 
-If `options.ignoreCargoCult` is true, common anti-cache directives will be completely ignored if the `pre-check` and `post-check` directives are present. These two useless directives are most commonly found in bad StackOverflow answers and PHP's "session limiter" defaults.
+If `options.ignoreCargoCult` is true, common anti-cache directives will be completely ignored if the non-standard `pre-check` and `post-check` directives are present. These two useless directives are most commonly found in bad StackOverflow answers and PHP's "session limiter" defaults.
 
 ### `storable()`
 
