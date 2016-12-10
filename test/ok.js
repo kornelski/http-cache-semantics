@@ -62,6 +62,7 @@ describe('okhttp tests', function(){
     assertCached(false, 416);
     assertCached(false, 417);
     assertCached(false, 418);
+    assertCached(false, 429);
 
     assertCached(false, 500);
     assertCached(true, 501);
