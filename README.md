@@ -73,7 +73,9 @@ If `options.ignoreCargoCult` is true, common anti-cache directives will be compl
 
 Returns `true` if the response can be stored in a cache. If it's `false` then you MUST NOT store either the request or the response.
 
-### `satisfiesWithoutRevalidation(request)`
+### `satisfiesWithoutRevalidation(new_request)`
+
+This is the most important method. Use this method to check whether the cached response is still fresh in the context of the new request.
 
 If it returns `true`, then the given `request` matches the original response this cache policy has been created with, and the response can be reused without contacting the server. Note that the old response can't be returned without being updated, see `responseHeaders()`.
 
@@ -83,15 +85,11 @@ If it returns `false`, then the response may not be matching at all (e.g. it's f
 
 Returns updated, filtered set of response headers. Proxies MUST always remove hop-by-hop headers (such as `TE` and `Connection`) and update response age to avoid doubling cache time.
 
-### `stale()`
-
-Returns `true` if the response is stale (i.e. not fresh).
-
-It generally means the response can't be used any more without revalidation with the server. However, there are exceptions, e.g. a client can explicitly allow stale responses.
-
 ### `timeToLive()`
 
-Returns number of *milliseconds* until the response becomes stale. After that time (when `timeToLive() <= 0`) the response won't be usable without revalidation.
+Returns approximate time in *milliseconds* until the response becomes stale (i.e. not fresh).
+
+After that time (when `timeToLive() <= 0`) the response might not be usable without revalidation. However, there are exceptions, e.g. a client can explicitly allow stale responses, so always check with `satisfiesWithoutRevalidation()`.
 
 ### `toObject()`/`fromObject(json)`
 
