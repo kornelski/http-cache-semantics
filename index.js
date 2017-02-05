@@ -120,10 +120,14 @@ module.exports = class CachePolicy {
             this._resHeaders.expires;
     }
 
-    satisfiesWithoutRevalidation(req) {
+    _assertRequestHasHeaders(req) {
         if (!req || !req.headers) {
             throw Error("Request headers missing");
         }
+    }
+
+    satisfiesWithoutRevalidation(req) {
+        this._assertRequestHasHeaders(req);
 
         // When presented with a request, a cache MUST NOT reuse a stored response, unless:
         // the presented request does not contain the no-cache pragma (Section 5.4), nor the no-cache cache directive,
@@ -150,11 +154,15 @@ module.exports = class CachePolicy {
             }
         }
 
+        return this._requestMatches(req, false);
+    }
+
+    _requestMatches(req, allowHeadMethod) {
         // The presented effective request URI and that of the stored response match, and
         return (!this._url || this._url === req.url) &&
             (this._host === req.headers.host) &&
             // the request method associated with the stored response allows it to be used for the presented request, and
-            (!req.method || this._method === req.method) &&
+            (!req.method || this._method === req.method || (allowHeadMethod && 'HEAD' === req.method)) &&
             // selecting header fields nominated by the stored response (if any) match those presented, and
             this._varyMatches(req);
     }
