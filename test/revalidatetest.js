@@ -21,35 +21,42 @@ const alwaysVariableResponse = {headers:Object.assign({'vary':'*'},cacheableResp
 describe('Can be revalidated?', function() {
     it('ok if method changes to HEAD', function(){
        const cache = new CachePolicy(simpleRequest,etaggedResponse);
-       assert(cache.validationRequest(simpleRequestBut({method:'HEAD'})));
+       const vReq = cache.validationRequest(simpleRequestBut({method:'HEAD'}));
+       assert.equal(vReq.headers['if-none-match'], '"123456789"');
     });
     it('not if method mismatch (other than HEAD)',function(){
        const cache = new CachePolicy(simpleRequest,etaggedResponse);
-       assert(!cache.validationRequest(simpleRequestBut({method:'POST'})));
+       const incomingRequest = simpleRequestBut({method:'POST'});
+       // Returns the same object unmodified, which means no custom validation
+       assert.strictEqual(incomingRequest, cache.validationRequest(incomingRequest));
     });
     it('not if url mismatch',function(){
        const cache = new CachePolicy(simpleRequest,etaggedResponse);
-       assert(!cache.validationRequest(simpleRequestBut({url:'/yomomma'}))); 
+       const incomingRequest = simpleRequestBut({url:'/yomomma'});
+       assert.strictEqual(incomingRequest, cache.validationRequest(incomingRequest));
     });
     it('not if host mismatch',function(){
         const cache = new CachePolicy(simpleRequest,etaggedResponse);
-        assert(!cache.validationRequest(simpleRequestBut({headers:{host:'www.w4c.org'}})))
+        const incomingRequest = simpleRequestBut({headers:{host:'www.w4c.org'}});
+        assert.strictEqual(incomingRequest, cache.validationRequest(incomingRequest));
     });
     it('not if vary fields prevent',function(){
        const cache = new CachePolicy(simpleRequest,alwaysVariableResponse);
-       assert(!cache.validationRequest(simpleRequest));
+       assert.strictEqual(simpleRequest, cache.validationRequest(simpleRequest));
     });
     it('when entity tag validator is present', function() {
         const cache = new CachePolicy(simpleRequest, etaggedResponse);
-        assert(cache.validationRequest(simpleRequest));
+        const vReq = cache.validationRequest(simpleRequest);
+        assert.equal(vReq.headers['if-none-match'], '"123456789"');
     });
     it('when last-modified validator is present', function() {
        const cache = new CachePolicy(simpleRequest, lastModifiedResponse);
-       assert(cache.validationRequest(simpleRequest));
+       const vReq = cache.validationRequest(simpleRequest);
+       assert.equal(vReq.headers['if-modified-since'], 'Tue, 15 Nov 1994 12:45:26 GMT');
     });
     it('not without validators', function() {
         const cache = new CachePolicy(simpleRequest, cacheableResponse);
-        assert(!cache.validationRequest(simpleRequest));
+        assert.strictEqual(simpleRequest, cache.validationRequest(simpleRequest));
     })
 
 });
