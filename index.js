@@ -350,7 +350,7 @@ module.exports = class CachePolicy {
 
     validationRequest(incoming_req) {
         this._assertRequestHasHeaders(incoming_req);
-        if (!this._resHeaders.etag && !this._resHeaders["last-modified"]) {
+        if (!this._resHeaders.etag && !this._resHeaders['last-modified']) {
             return incoming_req; // no validators available
         }
         // revalidation allowed via HEAD

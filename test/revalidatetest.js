@@ -3,8 +3,14 @@
 const assert = require('assert');
 const CachePolicy = require('..');
 
-const simpleRequest = {method:'GET',headers:{host:'www.w3c.org'},url:'/Protocols/rfc2616/rfc2616-sec14.html'};
-const simpleRequestBut = overrides=>Object.assign({},simpleRequest,overrides);
+const simpleRequest = {
+    method:'GET',
+    headers:{host:'www.w3c.org'},
+    url:'/Protocols/rfc2616/rfc2616-sec14.html',
+};
+function simpleRequestBut(overrides) {
+    return Object.assign({}, simpleRequest, overrides);
+}
 
 const cacheableResponse = {headers:{'cache-control':'max-age=111'}};
 const etaggedResponse = {headers:Object.assign({'etag':'"123456789"'},cacheableResponse.headers)};
@@ -13,7 +19,7 @@ const multiValidatorResponse = {headers:Object.assign({},etaggedResponse.headers
 const alwaysVariableResponse = {headers:Object.assign({'vary':'*'},cacheableResponse.headers)};
 
 describe('Can be revalidated?', function() {
-    it('ok if method changes to HEAD',function(){
+    it('ok if method changes to HEAD', function(){
        const cache = new CachePolicy(simpleRequest,etaggedResponse);
        assert(cache.validationRequest(simpleRequestBut({method:'HEAD'})));
     });
@@ -49,7 +55,7 @@ describe('Can be revalidated?', function() {
 });
 
 describe('Validation request', function(){
-    it('must contain any etag',function(){
+    it('must contain any etag', function(){
         const cache = new CachePolicy(simpleRequest,multiValidatorResponse);
         const expected = multiValidatorResponse.headers.etag;
         const actual = cache.validationRequest(simpleRequest).headers['if-none-match'];
@@ -61,5 +67,5 @@ describe('Validation request', function(){
         const actual = cache.validationRequest(simpleRequest).headers['if-modified-since'];
         assert.equal(actual,expected);
     });
-    
+
 });
