@@ -1,7 +1,7 @@
 {
   "name": "http-cache-semantics",
-  "version": "3.4.0",
-  "description": "Parses Cache-Control headers and friends",
+  "version": "3.5.0",
+  "description": "Parses Cache-Control and other headers. Helps building correct HTTP caches and proxies",
   "main": "index.js",
   "repository": "https://github.com/pornel/http-cache-semantics.git",
   "scripts": {
@@ -10,6 +10,6 @@
   "author": "Kornel Lesiński <kornel@geekhood.net> (https://kornel.ski/)",
   "license": "BSD-2-Clause",
   "devDependencies": {
-    "mocha": "^2.4.5"
+    "mocha": "^3.2.0"
   }
 }
