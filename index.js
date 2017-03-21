@@ -348,29 +348,28 @@ module.exports = class CachePolicy {
         };
     }
 
-    validationRequest(incoming_req) {
+    revalidationHeaders(incoming_req) {
         this._assertRequestHasHeaders(incoming_req);
         if (!this._resHeaders.etag && !this._resHeaders['last-modified']) {
-            return incoming_req; // no validators available
+            return incoming_req.headers; // no validators available
         }
         // revalidation allowed via HEAD
         if (!this._requestMatches(incoming_req, true)) {
-            return incoming_req; // not for the same resource
+            return incoming_req.headers; // not for the same resource
         }
 
-        const upstream_req = Object.assign({}, incoming_req);
-        upstream_req.headers = Object.assign({}, incoming_req.headers);
+        const headers = Object.assign({}, incoming_req.headers);
 
         /* MUST send that entity-tag in any cache validation request (using If-Match or If-None-Match) if an entity-tag has been provided by the origin server. */
         if (this._resHeaders.etag) {
-            upstream_req.headers['if-none-match'] = this._resHeaders.etag;
+            headers['if-none-match'] = this._resHeaders.etag;
         }
         /* SHOULD send the Last-Modified value in non-subrange cache validation requests (using If-Modified-Since) if only a Last-Modified value has been provided by the origin server.
         Note: This implementation does not understand partial responses (206) */
         if (this._resHeaders['last-modified'] && this.storable()) {
-            upstream_req.headers['if-modified-since'] = this._resHeaders['last-modified'];
+            headers['if-modified-since'] = this._resHeaders['last-modified'];
         }
 
-        return upstream_req;
+        return headers;
     }
 };

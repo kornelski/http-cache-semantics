@@ -83,7 +83,11 @@ If it returns `false`, then the response may not be matching at all (e.g. it's f
 
 ### `responseHeaders()`
 
-Returns updated, filtered set of response headers. Proxies MUST always remove hop-by-hop headers (such as `TE` and `Connection`) and update response age to avoid doubling cache time.
+Returns updated, filtered set of response headers to return to clients receiving the cached response. This function is necessary, because proxies MUST always remove hop-by-hop headers (such as `TE` and `Connection`) and update response `Age` to avoid doubling cache time.
+
+### `revalidationHeaders()`
+
+Returns updated, filtered set of request headers to send to the origin server to check if the cached response can be reused. With this set of headers, the origin server may return status 304 indicating the response is still fresh.
 
 ### `timeToLive()`
 
@@ -109,7 +113,9 @@ Chances are you'll want to store the `CachePolicy` object along with the cached 
 * Default cacheability of statuses and methods.
 * Requests for stale data.
 * Filtering of hop-by-hop headers.
+* Basic revalidation request
 
 ## Unimplemented
 
-* There's no API for revalidation yet.
+* Revalidation of multiple representations
+* Updating of response after revalidation
