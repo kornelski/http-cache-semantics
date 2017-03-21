@@ -189,15 +189,15 @@ module.exports = class CachePolicy {
         return true;
     }
 
-    responseHeaders() {
+    _copyWithoutHopByHopHeaders(inHeaders) {
         const headers = {};
-        for(const name in this._resHeaders) {
+        for(const name in inHeaders) {
             if (hopByHopHeaders[name]) continue;
-            headers[name] = this._resHeaders[name];
+            headers[name] = inHeaders[name];
         }
         // 9.1.  Connection
-        if (this._resHeaders.connection) {
-            const tokens = this._resHeaders.connection.trim().split(/\s*,\s*/);
+        if (inHeaders.connection) {
+            const tokens = inHeaders.connection.trim().split(/\s*,\s*/);
             for(const name of tokens) {
                 delete headers[name];
             }
@@ -212,6 +212,11 @@ module.exports = class CachePolicy {
                 headers.warning = warnings.join(',').trim();
             }
         }
+        return headers;
+    }
+
+    responseHeaders() {
+        const headers = this._copyWithoutHopByHopHeaders(this._resHeaders);
         headers.age = `${Math.round(this.age())}`;
         return headers;
     }
@@ -348,25 +353,32 @@ module.exports = class CachePolicy {
         };
     }
 
-    revalidationHeaders(incoming_req) {
-        this._assertRequestHasHeaders(incoming_req);
-        if (!this._resHeaders.etag && !this._resHeaders['last-modified']) {
-            return incoming_req.headers; // no validators available
-        }
-        // revalidation allowed via HEAD
-        if (!this._requestMatches(incoming_req, true)) {
-            return incoming_req.headers; // not for the same resource
-        }
+    /**
+     * Headers for sending to the origin server to revalidate stale response.
+     * Allows server to return 304 to allow reuse of the previous response.
+     *
+     * Hop by hop headers are always stripped.
+     * Revalidation headers may be added or removed, depending on request.
+     */
+    revalidationHeaders(incomingReq) {
+        this._assertRequestHasHeaders(incomingReq);
+        const headers = this._copyWithoutHopByHopHeaders(incomingReq.headers);
 
-        const headers = Object.assign({}, incoming_req.headers);
+        if (!this._requestMatches(incomingReq, true) || !this.storable()) { // revalidation allowed via HEAD
+            // not for the same resource, or wasn't allowed to be cached anyway
+            delete headers['if-none-match'];
+            delete headers['if-modified-since'];
+            return headers;
+        }
 
         /* MUST send that entity-tag in any cache validation request (using If-Match or If-None-Match) if an entity-tag has been provided by the origin server. */
         if (this._resHeaders.etag) {
-            headers['if-none-match'] = this._resHeaders.etag;
+            headers['if-none-match'] = headers['if-none-match'] ? `${headers['if-none-match']}, ${this._resHeaders.etag}` : this._resHeaders.etag;
         }
+
         /* SHOULD send the Last-Modified value in non-subrange cache validation requests (using If-Modified-Since) if only a Last-Modified value has been provided by the origin server.
         Note: This implementation does not understand partial responses (206) */
-        if (this._resHeaders['last-modified'] && this.storable()) {
+        if (this._resHeaders['last-modified'] && !headers['if-modified-since']) {
             headers['if-modified-since'] = this._resHeaders['last-modified'];
         }
 
