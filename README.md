@@ -85,7 +85,7 @@ If it returns `false`, then the response may not be matching at all (e.g. it's f
 
 Returns updated, filtered set of response headers to return to clients receiving the cached response. This function is necessary, because proxies MUST always remove hop-by-hop headers (such as `TE` and `Connection`) and update response `Age` to avoid doubling cache time.
 
-### `revalidationHeaders()`
+### `revalidationHeaders(newRequest)`
 
 Returns updated, filtered set of request headers to send to the origin server to check if the cached response can be reused. With this set of headers, the origin server may return status 304 indicating the response is still fresh.
 
