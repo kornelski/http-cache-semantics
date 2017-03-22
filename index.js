@@ -5,7 +5,7 @@ const statusCodeCacheableByDefault = [200, 203, 204, 206, 300, 301, 404, 405, 41
 // This implementation does not understand partial responses (206)
 const understoodStatuses = [200, 203, 204, 300, 301, 302, 303, 307, 308, 404, 405, 410, 414, 501];
 
-const hopByHopHeaders = {'connection':true, 'keep-alive':true, 'proxy-authenticate':true, 'proxy-authorization':true, 'te':true, 'trailers':true, 'transfer-encoding':true, 'upgrade':true};
+const hopByHopHeaders = {'connection':true, 'keep-alive':true, 'proxy-authenticate':true, 'proxy-authorization':true, 'te':true, 'trailer':true, 'transfer-encoding':true, 'upgrade':true};
 
 function parseCacheControl(header) {
     const cc = {};
