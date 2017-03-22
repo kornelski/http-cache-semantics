@@ -117,5 +117,6 @@ Chances are you'll want to store the `CachePolicy` object along with the cached 
 
 ## Unimplemented
 
+* Range requests, If-Range
 * Revalidation of multiple representations
 * Updating of response after revalidation

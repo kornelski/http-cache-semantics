@@ -364,6 +364,9 @@ module.exports = class CachePolicy {
         this._assertRequestHasHeaders(incomingReq);
         const headers = this._copyWithoutHopByHopHeaders(incomingReq.headers);
 
+        // This implementation does not understand range requests
+        delete headers['if-range'];
+
         if (!this._requestMatches(incomingReq, true) || !this.storable()) { // revalidation allowed via HEAD
             // not for the same resource, or wasn't allowed to be cached anyway
             delete headers['if-none-match'];
