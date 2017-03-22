@@ -42,7 +42,6 @@ describe('Can be revalidated?', function() {
     it('not if method mismatch (other than HEAD)', function(){
         const cache = new CachePolicy(simpleRequest,etaggedResponse);
         const incomingRequest = simpleRequestBut({method:'POST'});
-        // Returns the same object unmodified, which means no custom validation
         const headers = cache.revalidationHeaders(incomingRequest);
         assertHeadersPassed(headers);
         assertNoValidators(headers);

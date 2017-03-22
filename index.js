@@ -6,6 +6,12 @@ const statusCodeCacheableByDefault = [200, 203, 204, 206, 300, 301, 404, 405, 41
 const understoodStatuses = [200, 203, 204, 300, 301, 302, 303, 307, 308, 404, 405, 410, 414, 501];
 
 const hopByHopHeaders = {'connection':true, 'keep-alive':true, 'proxy-authenticate':true, 'proxy-authorization':true, 'te':true, 'trailer':true, 'transfer-encoding':true, 'upgrade':true};
+const excludedFromRevalidationUpdate = {
+    'etag': true, 'last-modified': true, // Per spec
+    'content-range': true,
+    // Since the old body is reused, it doesn't make sense to change properties of the body
+    'content-length': true, 'content-encoding': true, 'transfer-encoding': true,
+};
 
 function parseCacheControl(header) {
     const cc = {};
@@ -44,9 +50,7 @@ module.exports = class CachePolicy {
         if (!res || !res.headers) {
             throw Error("Response headers missing");
         }
-        if (!req || !req.headers) {
-            throw Error("Request headers missing");
-        }
+        this._assertRequestHasHeaders(req);
 
         this._responseTime = this.now();
         this._isShared = shared !== false;
@@ -402,5 +406,74 @@ module.exports = class CachePolicy {
         }
 
         return headers;
+    }
+
+    /**
+     * Creates new CachePolicy with information combined from the previews response,
+     * and the new revalidation response.
+     *
+     * Returns {policy, modified} where modified is a boolean indicating
+     * whether the response body has been modified, and old cached body can't be used.
+     *
+     * @return {Object} {policy: CachePolicy, modified: Boolean}
+     */
+    revalidatedPolicy(request, response) {
+        this._assertRequestHasHeaders(request);
+        if (!response || !response.headers) {
+            throw Error("Response headers missing");
+        }
+
+        // These aren't going to be supported exactly, since one CachePolicy object
+        // doesn't know about all the other cached objects.
+        let matches = false;
+        if (response.status !== undefined && response.status != 304) {
+            matches = false;
+        } else if (response.headers.etag && !/^\s*W\//.test(response.headers.etag)) {
+            // "All of the stored responses with the same strong validator are selected.
+            // If none of the stored responses contain the same strong validator,
+            // then the cache MUST NOT use the new response to update any stored responses."
+            matches = this._resHeaders.etag && this._resHeaders.etag.replace(/^\s*W\//,'') === response.headers.etag;
+        } else if (this._resHeaders.etag && response.headers.etag) {
+            // "If the new response contains a weak validator and that validator corresponds
+            // to one of the cache's stored responses,
+            // then the most recent of those matching stored responses is selected for update."
+            matches = this._resHeaders.etag.replace(/^\s*W\//,'') === response.headers.etag.replace(/^\s*W\//,'');
+        } else if (this._resHeaders['last-modified']) {
+            matches = this._resHeaders['last-modified'] === response.headers['last-modified'];
+        } else {
+            // If the new response does not include any form of validator (such as in the case where
+            // a client generates an If-Modified-Since request from a source other than the Last-Modified
+            // response header field), and there is only one stored response, and that stored response also
+            // lacks a validator, then that stored response is selected for update.
+            if (!this._resHeaders.etag && !this._resHeaders['last-modified'] &&
+                !response.headers.etag && !response.headers['last-modified']) {
+                matches = true;
+            }
+        }
+
+        if (!matches) {
+            return {
+                policy: new this.constructor(request, response),
+                modified: true,
+            }
+        }
+
+        // use other header fields provided in the 304 (Not Modified) response to replace all instances
+        // of the corresponding header fields in the stored response.
+        const headers = {};
+        for(const k in this._resHeaders) {
+            if (excludedFromRevalidationUpdate[k]) continue;
+            headers[k] = k in response.headers ? response.headers[k] : this._resHeaders[k];
+        }
+
+        const newResponse = Object.assign({}, response, {
+            status: this._status,
+            method: this._method,
+            headers,
+        });
+        return {
+            policy: new this.constructor(request, newResponse),
+            modified: false,
+        };
     }
 };

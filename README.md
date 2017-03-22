@@ -63,7 +63,7 @@ const options = {
 };
 ```
 
-If `options.shared` is true (default), then response is evaluated from perspective of a shared cache (i.e. `private` is not cacheable and `s-maxage` is respected). If `options.shared` is false, then response is evaluated from perspective of a single-user cache (i.e. `private` is cacheable and `s-maxage` is ignored).
+If `options.shared` is `true` (default), then the response is evaluated from a perspective of a shared cache (i.e. `private` is not cacheable and `s-maxage` is respected). If `options.shared` is `false`, then the response is evaluated from a perspective of a single-user cache (i.e. `private` is cacheable and `s-maxage` is ignored).
 
 `options.cacheHeuristic` is a fraction of response's age that is used as a fallback cache duration. The default is 0.1 (10%), e.g. if a file hasn't been modified for 100 days, it'll be cached for 100*0.1 = 10 days.
 
@@ -73,21 +73,21 @@ If `options.ignoreCargoCult` is true, common anti-cache directives will be compl
 
 Returns `true` if the response can be stored in a cache. If it's `false` then you MUST NOT store either the request or the response.
 
-### `satisfiesWithoutRevalidation(new_request)`
+### `satisfiesWithoutRevalidation(newRequest)`
 
 This is the most important method. Use this method to check whether the cached response is still fresh in the context of the new request.
 
 If it returns `true`, then the given `request` matches the original response this cache policy has been created with, and the response can be reused without contacting the server. Note that the old response can't be returned without being updated, see `responseHeaders()`.
 
-If it returns `false`, then the response may not be matching at all (e.g. it's for a different URL or method), or may require to be refreshed first.
+If it returns `false`, then the response may not be matching at all (e.g. it's for a different URL or method), or may require to be refreshed first (see `revalidationHeaders()`).
 
 ### `responseHeaders()`
 
-Returns updated, filtered set of response headers to return to clients receiving the cached response. This function is necessary, because proxies MUST always remove hop-by-hop headers (such as `TE` and `Connection`) and update response `Age` to avoid doubling cache time.
+Returns updated, filtered set of response headers to return to clients receiving the cached response. This function is necessary, because proxies MUST always remove hop-by-hop headers (such as `TE` and `Connection`) and update response's `Age` to avoid doubling cache time.
 
-### `revalidationHeaders(newRequest)`
-
-Returns updated, filtered set of request headers to send to the origin server to check if the cached response can be reused. With this set of headers, the origin server may return status 304 indicating the response is still fresh.
+```js
+cachedResponse.headers = cachePolicy.responseHeaders(cachedResponse);
+```
 
 ### `timeToLive()`
 
@@ -98,6 +98,55 @@ After that time (when `timeToLive() <= 0`) the response might not be usable with
 ### `toObject()`/`fromObject(json)`
 
 Chances are you'll want to store the `CachePolicy` object along with the cached response. `obj = policy.toObject()` gives a plain JSON-serializable object. `policy = CachePolicy.fromObject(obj)` creates an instance from it.
+
+### Refreshing stale cache (revalidation)
+
+When a cached response has expired, it can be made fresh again by making a request to the origin server. The server may respond with status 304 (Not Modified) without sending the response body again, saving bandwidth.
+
+The following methods help perform the update efficiently and correctly.
+
+#### `revalidationHeaders(newRequest)`
+
+Returns updated, filtered set of request headers to send to the origin server to check if the cached response can be reused. These headers allow the origin server to return status 304 indicating the response is still fresh. All headers unrelated to caching are passed through as-is.
+
+Use this method when updating cache from the origin server.
+
+```js
+updateRequest.headers = cachePolicy.revalidationHeaders(updateRequest);
+```
+
+#### `revalidatedPolicy(revalidationRequest, revalidationResponse)`
+
+Use this method to update the cache after receiving a new response from the origin server. It returns an object with two keys:
+
+* `policy` — A new `CachePolicy` with HTTP headers updated from `revalidationResponse`. You can always replace the old cached `CachePolicy` with the new one.
+* `modified` — Boolean indicating whether the response body has changed.
+   * If `false`, then a valid 304 Not Modified response has been received, and you can reuse the old cached response body.
+   * If `true`, you should use new response's body (if present), or make another request to the origin server without any conditional headers (i.e. don't use `revalidationHeaders()` this time) to get the new resource.
+
+```js
+// When serving requests from cache:
+const {oldPolicy, oldResponse} = letsPretendThisIsSomeCache.get(newRequest.url);
+
+if (!oldPolicy.satisfiesWithoutRevalidation(newRequest)) {
+    // Change the request to ask the origin server if the cached response can be used
+    newRequest.headers = oldPolicy.revalidationHeaders(newRequest);
+
+    // Send request to the origin server. The server may respond with status 304
+    const newResponse = await makeRequest(newResponse);
+
+    // Create updated policy and combined response from the old and new data
+    const {policy, modified} = oldPolicy.revalidatedPolicy(newRequest, newResponse);
+    const response = modified ? newResponse : oldResponse;
+
+    // Update the cache with the newer/fresher response
+    letsPretendThisIsSomeCache.set(newRequest.url, {policy, response}, policy.timeToLive());
+
+    // And proceed returning cached response as usual
+    response.headers = policy.responseHeaders();
+    return response;
+}
+```
 
 # Yo, FRESH
 
@@ -119,4 +168,3 @@ Chances are you'll want to store the `CachePolicy` object along with the cached 
 
 * Range requests, If-Range
 * Revalidation of multiple representations
-* Updating of response after revalidation
