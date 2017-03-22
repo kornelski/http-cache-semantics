@@ -379,9 +379,25 @@ module.exports = class CachePolicy {
             headers['if-none-match'] = headers['if-none-match'] ? `${headers['if-none-match']}, ${this._resHeaders.etag}` : this._resHeaders.etag;
         }
 
+        // Clients MAY issue simple (non-subrange) GET requests with either weak validators or strong validators. Clients MUST NOT use weak validators in other forms of request.
+        const forbidsWeakValidators = headers['accept-ranges'] || headers['if-match'] || headers['if-unmodified-since'] || (this._method && this._method != 'GET');
+
         /* SHOULD send the Last-Modified value in non-subrange cache validation requests (using If-Modified-Since) if only a Last-Modified value has been provided by the origin server.
         Note: This implementation does not understand partial responses (206) */
-        if (this._resHeaders['last-modified'] && !headers['if-modified-since']) {
+        if (forbidsWeakValidators) {
+            delete headers['if-modified-since'];
+
+            if (headers['if-none-match']) {
+                const etags = headers['if-none-match'].split(/,/).filter(etag => {
+                    return !/^\s*W\//.test(etag);
+                });
+                if (!etags.length) {
+                    delete headers['if-none-match'];
+                } else {
+                    headers['if-none-match'] = etags.join(',').trim();
+                }
+            }
+        } else if (this._resHeaders['last-modified'] && !headers['if-modified-since']) {
             headers['if-modified-since'] = this._resHeaders['last-modified'];
         }
 

@@ -110,4 +110,17 @@ describe('Validation request', function(){
         assert.equal(actual,expected);
     });
 
+    it('should not send the Last-Modified value for POST', function(){
+        const postReq = {method:'POST', headers:{'if-modified-since':'yesterday'}};
+        const cache = new CachePolicy(postReq, lastModifiedResponse);
+        const actual = cache.revalidationHeaders(postReq)['if-modified-since'];
+        assert.equal(actual, undefined);
+    });
+
+    it('should not send the Last-Modified value for range requests', function(){
+        const rangeReq = {method:'GET', headers:{'accept-ranges':'1-3', 'if-modified-since':'yesterday'}};
+        const cache = new CachePolicy(rangeReq, lastModifiedResponse);
+        const actual = cache.revalidationHeaders(rangeReq)['if-modified-since'];
+        assert.equal(actual, undefined);
+    });
 });
