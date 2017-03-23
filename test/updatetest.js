@@ -40,6 +40,7 @@ function assertUpdates(firstRequest, firstResponse, secondRequest, secondRespons
     assert.equal(headers['foo'], 'updated');
     assert.equal(headers['x-other'], 'original');
     assert.strictEqual(headers['x-ignore-new'], undefined);
+    assert.strictEqual(headers['etag'], secondResponse.headers.etag);
 }
 
 describe('Update revalidated', function() {

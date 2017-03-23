@@ -7,10 +7,9 @@ const understoodStatuses = [200, 203, 204, 300, 301, 302, 303, 307, 308, 404, 40
 
 const hopByHopHeaders = {'connection':true, 'keep-alive':true, 'proxy-authenticate':true, 'proxy-authorization':true, 'te':true, 'trailer':true, 'transfer-encoding':true, 'upgrade':true};
 const excludedFromRevalidationUpdate = {
-    'etag': true, 'last-modified': true, // Per spec
-    'content-range': true,
     // Since the old body is reused, it doesn't make sense to change properties of the body
     'content-length': true, 'content-encoding': true, 'transfer-encoding': true,
+    'content-range': true,
 };
 
 function parseCacheControl(header) {
