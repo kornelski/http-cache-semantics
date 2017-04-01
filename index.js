@@ -40,7 +40,7 @@ function formatCacheControl(cc) {
 }
 
 module.exports = class CachePolicy {
-    constructor(req, res, {shared, cacheHeuristic, ignoreCargoCult, _fromObject} = {}) {
+    constructor(req, res, {shared, cacheHeuristic, immutableMinTimeToLive, ignoreCargoCult, _fromObject} = {}) {
         if (_fromObject) {
             this._fromObject(_fromObject);
             return;
@@ -54,6 +54,7 @@ module.exports = class CachePolicy {
         this._responseTime = this.now();
         this._isShared = shared !== false;
         this._cacheHeuristic = undefined !== cacheHeuristic ? cacheHeuristic : 0.1; // 10% matches IE
+        this._immutableMinTtl = undefined !== immutableMinTimeToLive ? immutableMinTimeToLive : 24*3600*1000;
 
         this._status = 'status' in res ? res.status : 200;
         this._resHeaders = res.headers;
@@ -266,7 +267,7 @@ module.exports = class CachePolicy {
 
         // Shared responses with cookies are cacheable according to the RFC, but IMHO it'd be unwise to do so by default
         // so this implementation requires explicit opt-in via public header
-        if (this._isShared && (this._resHeaders['set-cookie'] && !this._rescc.public)) {
+        if (this._isShared && (this._resHeaders['set-cookie'] && !this._rescc.public && !this._rescc.immutable)) {
             return 0;
         }
 
@@ -289,6 +290,8 @@ module.exports = class CachePolicy {
             return parseInt(this._rescc['max-age'], 10);
         }
 
+        const defaultMinTtl = this._rescc.immutable ? this._immutableMinTtl : 0;
+
         const dateValue = this.date();
         if (this._resHeaders.expires) {
             const expires = Date.parse(this._resHeaders.expires);
@@ -296,16 +299,17 @@ module.exports = class CachePolicy {
             if (Number.isNaN(expires) || expires < dateValue) {
                 return 0;
             }
-            return (expires - dateValue)/1000;
+            return Math.max(defaultMinTtl, (expires - dateValue)/1000);
         }
 
         if (this._resHeaders['last-modified']) {
             const lastModified = Date.parse(this._resHeaders['last-modified']);
             if (isFinite(lastModified) && dateValue > lastModified) {
-                return (dateValue - lastModified)/1000 * this._cacheHeuristic;
+                return Math.max(defaultMinTtl, (dateValue - lastModified)/1000 * this._cacheHeuristic);
             }
         }
-        return 0;
+
+        return defaultMinTtl;
     }
 
     timeToLive() {
@@ -327,6 +331,7 @@ module.exports = class CachePolicy {
         this._responseTime = obj.t;
         this._isShared = obj.sh;
         this._cacheHeuristic = obj.ch;
+        this._immutableMinTtl = obj.imm !== undefined ? obj.imm : 24*3600*1000;
         this._status = obj.st;
         this._resHeaders = obj.resh;
         this._rescc = obj.rescc;
@@ -344,6 +349,7 @@ module.exports = class CachePolicy {
             t: this._responseTime,
             sh: this._isShared,
             ch: this._cacheHeuristic,
+            imm: this._immutableMinTtl,
             st: this._status,
             resh: this._resHeaders,
             rescc: this._rescc,

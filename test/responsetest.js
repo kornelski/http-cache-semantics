@@ -158,6 +158,38 @@ describe('Response headers', function() {
         assert(cache.maxAge() > 100);
     });
 
+    it('immutable simple hit', function() {
+        const cache = new CachePolicy(req, {headers:{'cache-control': 'immutable, max-age=999999'}});
+        assert(!cache.stale());
+        assert.equal(cache.maxAge(), 999999);
+    });
+
+    it('immutable can expire', function() {
+        const cache = new CachePolicy(req, {headers:{'cache-control': 'immutable, max-age=0'}});
+        assert(cache.stale());
+        assert.equal(cache.maxAge(), 0);
+    });
+
+    it('cache immutable files', function() {
+        const cache = new CachePolicy(req, {headers:{
+            'date': new Date().toGMTString(),
+            'cache-control':'immutable',
+            'last-modified': new Date().toGMTString(),
+        }});
+        assert(!cache.stale());
+        assert(cache.maxAge() > 100);
+    });
+
+    it('immutable can be off', function() {
+        const cache = new CachePolicy(req, {headers:{
+            'date': new Date().toGMTString(),
+            'cache-control':'immutable',
+            'last-modified': new Date().toGMTString(),
+        }}, {immutableMinTimeToLive: 0});
+        assert(cache.stale());
+        assert.equal(cache.maxAge(), 0);
+    });
+
     it('pragma: no-cache', function() {
         const cache = new CachePolicy(req, {headers:{
             'pragma': 'no-cache',
@@ -199,6 +231,16 @@ describe('Response headers', function() {
         const uaCache = new CachePolicy(req, {headers:cookieHeader}, {shared:false});
         assert(!uaCache.stale());
         assert.equal(99, uaCache.maxAge());
+    });
+
+    it('do share cookies if immutable', function() {
+        const cookieHeader = {
+            'set-cookie': 'foo=bar',
+            'cache-control': 'immutable, max-age=99',
+        };
+        const proxyCache = new CachePolicy(req, {headers:cookieHeader}, {shared:true});
+        assert(!proxyCache.stale());
+        assert.equal(99, proxyCache.maxAge());
     });
 
     it('cache explicitly public cookie', function() {
