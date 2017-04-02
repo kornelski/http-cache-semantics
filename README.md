@@ -1,4 +1,4 @@
-# Can I cache this?
+# Can I cache this? [![Build Status](https://travis-ci.org/pornel/http-cache-semantics.svg?branch=master)](https://travis-ci.org/pornel/http-cache-semantics)
 
 `CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
 
