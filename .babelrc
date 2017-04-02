@@ -1,0 +1,11 @@
+{
+  "presets": [
+    ["env", {
+      "loose": true,
+      "targets": {
+        "browsers": false,
+        "node": 4
+      }
+    }]
+  ]
+}

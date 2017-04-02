@@ -97,7 +97,7 @@ module.exports = class CachePolicy {
             // The request method is understood by the cache and defined as being cacheable, and
             ('GET' === this._method || 'HEAD' === this._method || ('POST' === this._method && this._hasExplicitExpiration())) &&
             // the response status code is understood by the cache, and
-            understoodStatuses.includes(this._status) &&
+            understoodStatuses.indexOf(this._status) !== -1 &&
             // the "no-store" cache directive does not appear in request or response header fields, and
             !this._rescc['no-store'] &&
             // the "private" response directive does not appear in the response, if the cache is shared, and
@@ -113,7 +113,7 @@ module.exports = class CachePolicy {
                 // contains a public response directive.
                 this._rescc.public || this._rescc['max-age'] || this._rescc['s-maxage'] ||
                 // has a status code that is defined as cacheable by default
-                statusCodeCacheableByDefault.includes(this._status)
+                statusCodeCacheableByDefault.indexOf(this._status) !== -1
             ));
     }
 
