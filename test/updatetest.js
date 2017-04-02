@@ -75,6 +75,13 @@ describe('Update revalidated', function() {
         assert(!notModifiedResponseHeaders(simpleRequest, lastModifiedResponse, simpleRequest, cacheableResponse));
     });
 
+    it('Skips update of content-length', function(){
+        const etaggedResponseWithLenght1 = withHeaders(etaggedResponse, {'content-length':1});
+        const etaggedResponseWithLenght2 = withHeaders(etaggedResponse, {'content-length':2});
+        const headers = notModifiedResponseHeaders(simpleRequest, etaggedResponseWithLenght1, simpleRequest, etaggedResponseWithLenght2);
+        assert.equal(1, headers['content-length']);
+    });
+
     it('Ignored if validator is different', function(){
         assert(!notModifiedResponseHeaders(simpleRequest, lastModifiedResponse, simpleRequest, etaggedResponse));
         assert(!notModifiedResponseHeaders(simpleRequest, lastModifiedResponse, simpleRequest, weakTaggedResponse));

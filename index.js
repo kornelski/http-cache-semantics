@@ -467,8 +467,7 @@ module.exports = class CachePolicy {
         // of the corresponding header fields in the stored response.
         const headers = {};
         for(const k in this._resHeaders) {
-            if (excludedFromRevalidationUpdate[k]) continue;
-            headers[k] = k in response.headers ? response.headers[k] : this._resHeaders[k];
+            headers[k] = k in response.headers && !excludedFromRevalidationUpdate[k] ? response.headers[k] : this._resHeaders[k];
         }
 
         const newResponse = Object.assign({}, response, {
