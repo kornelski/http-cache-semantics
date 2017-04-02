@@ -77,6 +77,30 @@ describe('Can be revalidated?', function() {
         assert.equal(headers['if-none-match'], '"123456789"');
     });
 
+    it('skips weak validtors on post', function() {
+        const postReq = simpleRequestBut({method:'POST', headers:{'if-none-match': 'W/"weak", "strong", W/"weak2"'}});
+        const cache = new CachePolicy(postReq, multiValidatorResponse);
+        const headers = cache.revalidationHeaders(postReq);
+        assert.equal(headers['if-none-match'], '"strong", "123456789"');
+        assert.strictEqual(undefined, headers['if-modified-since']);
+    });
+
+    it('skips weak validtors on post 2', function() {
+        const postReq = simpleRequestBut({method:'POST', headers:{'if-none-match': 'W/"weak"'}});
+        const cache = new CachePolicy(postReq, lastModifiedResponse);
+        const headers = cache.revalidationHeaders(postReq);
+        assert.strictEqual(undefined, headers['if-none-match']);
+        assert.strictEqual(undefined, headers['if-modified-since']);
+    });
+
+    it('merges validtors', function() {
+        const postReq = simpleRequestBut({headers:{'if-none-match': 'W/"weak", "strong", W/"weak2"'}});
+        const cache = new CachePolicy(postReq, multiValidatorResponse);
+        const headers = cache.revalidationHeaders(postReq);
+        assert.equal(headers['if-none-match'], 'W/"weak", "strong", W/"weak2", "123456789"');
+        assert.equal('Tue, 15 Nov 1994 12:45:26 GMT', headers['if-modified-since']);
+    });
+
     it('when last-modified validator is present', function() {
         const cache = new CachePolicy(simpleRequest, lastModifiedResponse);
         const headers = cache.revalidationHeaders(simpleRequest);
@@ -94,12 +118,29 @@ describe('Can be revalidated?', function() {
 });
 
 describe('Validation request', function(){
+    it('removes warnings', function() {
+      const cache = new CachePolicy({headers:{}}, {headers:{
+          "warning": "199 test danger",
+      }});
+
+      assert.strictEqual(undefined, cache.responseHeaders().warning);
+    });
 
     it('must contain any etag', function(){
         const cache = new CachePolicy(simpleRequest,multiValidatorResponse);
         const expected = multiValidatorResponse.headers.etag;
         const actual = cache.revalidationHeaders(simpleRequest)['if-none-match'];
         assert.equal(actual,expected);
+    });
+
+    it('merges etags', function(){
+        const cache = new CachePolicy(simpleRequest, etaggedResponse);
+        const expected = `"foo", "bar", ${etaggedResponse.headers.etag}`;
+        const headers = cache.revalidationHeaders(simpleRequestBut({headers:{
+            host:'www.w3c.org',
+            'if-none-match': '"foo", "bar"',
+        }}));
+        assert.equal(headers['if-none-match'],expected);
     });
 
     it('should send the Last-Modified value', function(){

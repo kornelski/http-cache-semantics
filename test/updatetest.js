@@ -60,8 +60,11 @@ describe('Update revalidated', function() {
         assertUpdates(simpleRequest, multiValidatorResponse, simpleRequest, multiValidatorResponse);
     });
 
-    it('Last-mod can vary if etag matches', function(){
-        assertUpdates(simpleRequest, multiValidatorResponse, simpleRequest, multiValidatorResponse);
+    it('Checks status', function(){
+        const response304 = Object.assign({}, multiValidatorResponse, {status:304});
+        const response200 = Object.assign({}, multiValidatorResponse, {status:200});
+        assertUpdates(simpleRequest, multiValidatorResponse, simpleRequest, response304);
+        assert(!notModifiedResponseHeaders(simpleRequest, multiValidatorResponse, simpleRequest, response200));
     });
 
     it('Last-mod ignored if etag is wrong', function(){
