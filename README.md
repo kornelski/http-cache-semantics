@@ -143,7 +143,9 @@ if (!oldPolicy.satisfiesWithoutRevalidation(newRequest)) {
     const response = modified ? newResponse : oldResponse;
 
     // Update the cache with the newer/fresher response
-    letsPretendThisIsSomeCache.set(newRequest.url, {policy, response}, policy.timeToLive());
+    if (policy.storable()) {
+      letsPretendThisIsSomeCache.set(newRequest.url, {policy, response}, policy.timeToLive());
+    }
 
     // And proceed returning cached response as usual
     response.headers = policy.responseHeaders();
