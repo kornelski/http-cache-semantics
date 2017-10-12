@@ -260,6 +260,13 @@ module.exports = class CachePolicy {
         return isFinite(ageValue) ? ageValue : 0;
     }
 
+    /**
+     * Value of applicable max-age (or heuristic equivalent) in seconds. This counts since response's `Date`.
+     *
+     * For an up-to-date value, see `timeToLive()`.
+     *
+     * @return Number
+     */
     maxAge() {
         if (!this.storable() || this._rescc['no-cache']) {
             return 0;
