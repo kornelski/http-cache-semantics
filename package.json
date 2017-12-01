@@ -10,9 +10,7 @@
     "test": "npm run compile; mocha node4/test"
   },
   "files": [
-    "node4/index.js",
-    "index.js",
-    "test"
+    "node4/index.js"
   ],
   "author": "Kornel Lesiński <kornel@geekhood.net> (https://kornel.ski/)",
   "license": "BSD-2-Clause",
