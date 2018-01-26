@@ -1,4 +1,4 @@
-# Can I cache this? [![Build Status](https://travis-ci.org/pornel/http-cache-semantics.svg?branch=master)](https://travis-ci.org/pornel/http-cache-semantics)
+# Can I cache this? [![Build Status](https://travis-ci.org/kornelski/http-cache-semantics.svg?branch=master)](https://travis-ci.org/kornelski/http-cache-semantics)
 
 `CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
 
@@ -157,7 +157,7 @@ if (!oldPolicy.satisfiesWithoutRevalidation(newRequest)) {
 
 ## Used by
 
-* [ImageOptim API](https://imageoptim.com/api), [make-fetch-happen](https://github.com/zkat/make-fetch-happen), [cacheable-request](https://www.npmjs.com/package/cacheable-request), [npm/registry-fetch](https://github.com/npm/registry-fetch), [etc.](https://github.com/pornel/http-cache-semantics/network/dependents)
+* [ImageOptim API](https://imageoptim.com/api), [make-fetch-happen](https://github.com/zkat/make-fetch-happen), [cacheable-request](https://www.npmjs.com/package/cacheable-request), [npm/registry-fetch](https://github.com/npm/registry-fetch), [etc.](https://github.com/kornelski/http-cache-semantics/network/dependents)
 
 ## Implemented
 
