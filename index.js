@@ -238,11 +238,14 @@ module.exports = class CachePolicy {
      */
     date() {
         const dateValue = Date.parse(this._resHeaders.date)
-        const maxClockDrift = 8*3600*1000;
-        if (Number.isNaN(dateValue) || dateValue < this._responseTime-maxClockDrift || dateValue > this._responseTime+maxClockDrift) {
-            return this._responseTime;
+        if (isFinite(dateValue)) {
+            const maxClockDrift = 8*3600*1000;
+            const clockDrift = Math.abs(this._responseTime - dateValue);
+            if (clockDrift < maxClockDrift) {
+                return dateValue;
+            }
         }
-        return dateValue;
+        return this._responseTime;
     }
 
     /**
