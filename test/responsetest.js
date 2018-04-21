@@ -372,7 +372,7 @@ describe('Response headers', function() {
         assert(!h.te);
         assert(!h.oompa);
         assert.equal(h['cache-control'], 'public, max-age=333');
-        assert.equal(h.date, 'now', "date must stay the same for expires, age, etc");
+        assert.notEqual(h.date, 'now', "updated age requires updated date");
         assert.equal(h.custom, 'header');
         assert.equal(h.age, '11');
         assert.equal(res.headers.age, '10');
