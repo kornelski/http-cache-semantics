@@ -31,11 +31,11 @@ describe('Other', function() {
         });
     });
 
-    it('GitHub response', function() {
+    it('GitHub response with small clock skew', function() {
         const res = {
             headers: {
                 server: 'GitHub.com',
-                date: new Date().toUTCString(),
+                date: new Date(Date.now()-77*1000).toUTCString(),
                 'content-type': 'application/json; charset=utf-8',
                 'transfer-encoding': 'chunked',
                 connection: 'close',
@@ -69,7 +69,8 @@ describe('Other', function() {
         };
 
         const c = new CachePolicy(req, res, {
-            shared: false
+            shared: false,
+            trustServerDate: false,
         });
         assert(c.satisfiesWithoutRevalidation(req));
     })

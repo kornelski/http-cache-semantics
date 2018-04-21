@@ -43,7 +43,7 @@ function formatCacheControl(cc) {
 }
 
 module.exports = class CachePolicy {
-    constructor(req, res, {shared, cacheHeuristic, immutableMinTimeToLive, ignoreCargoCult, _fromObject} = {}) {
+    constructor(req, res, {shared, cacheHeuristic, immutableMinTimeToLive, ignoreCargoCult, trustServerDate, _fromObject} = {}) {
         if (_fromObject) {
             this._fromObject(_fromObject);
             return;
@@ -56,6 +56,7 @@ module.exports = class CachePolicy {
 
         this._responseTime = this.now();
         this._isShared = shared !== false;
+        this._trustServerDate = undefined !== trustServerDate ? trustServerDate : true;
         this._cacheHeuristic = undefined !== cacheHeuristic ? cacheHeuristic : 0.1; // 10% matches IE
         this._immutableMinTtl = undefined !== immutableMinTimeToLive ? immutableMinTimeToLive : 24*3600*1000;
 
@@ -241,6 +242,13 @@ module.exports = class CachePolicy {
      * @return timestamp
      */
     date() {
+        if (this._trustServerDate) {
+            return this._serverDate();
+        }
+        return this._responseTime;
+    }
+
+    _serverDate() {
         const dateValue = Date.parse(this._resHeaders.date)
         if (isFinite(dateValue)) {
             const maxClockDrift = 8*3600*1000;
@@ -313,7 +321,7 @@ module.exports = class CachePolicy {
 
         const defaultMinTtl = this._rescc.immutable ? this._immutableMinTtl : 0;
 
-        const dateValue = this.date();
+        const dateValue = this._serverDate();
         if (this._resHeaders.expires) {
             const expires = Date.parse(this._resHeaders.expires);
             // A cache recipient MUST interpret invalid date formats, especially the value "0", as representing a time in the past (i.e., "already expired").

@@ -87,12 +87,31 @@ describe('Response headers', function() {
     });
 
     it('cache with expires', function() {
+        const now = Date.now();
         const cache = new CachePolicy(req, {headers:{
-            'date': new Date().toGMTString(),
-            'expires': new Date(Date.now() + 2000).toGMTString(),
+            'date': new Date(now).toGMTString(),
+            'expires': new Date(now + 2000).toGMTString(),
         }});
         assert(!cache.stale());
         assert.equal(2, cache.maxAge());
+    });
+
+    it('cache with expires relative to date', function() {
+        const now = Date.now();
+        const cache = new CachePolicy(req, {headers:{
+            'date': new Date(now-3000).toGMTString(),
+            'expires': new Date(now).toGMTString(),
+        }});
+        assert.equal(3, cache.maxAge());
+    });
+
+    it('cache with expires always relative to date', function() {
+        const now = Date.now();
+        const cache = new CachePolicy(req, {headers:{
+            'date': new Date(now-3000).toGMTString(),
+            'expires': new Date(now).toGMTString(),
+        }},{trustServerDate:false});
+        assert.equal(3, cache.maxAge());
     });
 
     it('cache expires no date', function() {
