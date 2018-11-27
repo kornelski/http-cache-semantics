@@ -1,6 +1,6 @@
 {
   "name": "http-cache-semantics",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Parses Cache-Control and other headers. Helps building correct HTTP caches and proxies",
   "repository": "https://github.com/kornelski/http-cache-semantics.git",
   "main": "index.js",
