@@ -505,7 +505,7 @@ module.exports = class CachePolicy {
             headers,
         });
         return {
-            policy: new this.constructor(request, newResponse),
+            policy: new this.constructor(request, newResponse, {shared: this._isShared, cacheHeuristic: this._cacheHeuristic, immutableMinTimeToLive: this._immutableMinTtl, trustServerDate: this._trustServerDate}),
             modified: false,
         };
     }
