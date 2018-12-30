@@ -488,7 +488,11 @@ module.exports = class CachePolicy {
         if (!matches) {
             return {
                 policy: new this.constructor(request, response),
-                modified: true,
+                // Client receiving 304 without body, even if it's invalid/mismatched has no option
+                // but to reuse a cached body. We don't have a good way to tell clients to do
+                // error recovery in such case.
+                modified: response.status != 304,
+                matches: false,
             }
         }
 
@@ -507,6 +511,7 @@ module.exports = class CachePolicy {
         return {
             policy: new this.constructor(request, newResponse, {shared: this._isShared, cacheHeuristic: this._cacheHeuristic, immutableMinTimeToLive: this._immutableMinTtl, trustServerDate: this._trustServerDate}),
             modified: false,
+            matches: true,
         };
     }
 };
