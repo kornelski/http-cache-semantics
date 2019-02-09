@@ -278,6 +278,17 @@ describe('Response headers', function() {
         assert(cache.stale());
     });
 
+    it('blank cache-control and pragma: no-cache', function() {
+        const cache = new CachePolicy(req, {
+            headers: {
+                'cache-control': '',
+                pragma: 'no-cache',
+                'last-modified': new Date().toGMTString(),
+            },
+        });
+        assert(!cache.stale());
+    });
+
     it('no-store', function() {
         const cache = new CachePolicy(req, {
             headers: {
