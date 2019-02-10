@@ -144,7 +144,7 @@ module.exports = class CachePolicy {
         // When the Cache-Control header field is not present in a request, caches MUST consider the no-cache request pragma-directive
         // as having the same effect as if "Cache-Control: no-cache" were present (see Section 5.2.1).
         if (
-            !res.headers['cache-control'] &&
+            res.headers['cache-control'] == null &&
             /no-cache/.test(res.headers.pragma)
         ) {
             this._rescc['no-cache'] = true;
