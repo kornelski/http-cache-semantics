@@ -21,39 +21,40 @@ export = class CachePolicy implements ICachePolicyFields {
         }
 
         const policy = cloneDeep<ICachePolicyFields>({
-            cacheHeuristic: obj.ch,
-            host: obj.h,
-            immutableMinTtl: obj.imm == null ? defaultImmutableMinTtl : obj.imm,
-            isShared: obj.sh,
-            method: obj.m,
-            noAuthorization: obj.a,
-            reqHeaders: obj.reqh,
-            reqcc: obj.reqcc,
-            resHeaders: obj.resh,
-            rescc: obj.rescc,
-            responseTime: obj.t,
-            status: obj.st,
-            url: obj.u,
+            _cacheHeuristic: obj.ch,
+            _host: obj.h,
+            _immutableMinTtl:
+                obj.imm == null ? defaultImmutableMinTtl : obj.imm,
+            _isShared: obj.sh,
+            _method: obj.m,
+            _noAuthorization: obj.a,
+            _reqHeaders: obj.reqh,
+            _reqcc: obj.reqcc,
+            _resHeaders: obj.resh,
+            _rescc: obj.rescc,
+            _responseTime: obj.t,
+            _status: obj.st,
+            _url: obj.u,
         });
 
         return Object.assign(Object.create(CachePolicy.prototype), policy);
     }
 
-    public readonly cacheHeuristic: number;
-    public readonly host?: string;
-    public readonly immutableMinTtl: number;
-    public readonly isShared: boolean;
-    public readonly method: HttpMethod;
-    public readonly noAuthorization: boolean;
-    public readonly reqHeaders?: IRequestHeaders;
-    public readonly reqcc: IRequestCacheControl;
-    public readonly resHeaders: IResponseHeaders;
-    public readonly rescc: IResponseCacheControl;
-    public readonly responseTime: number;
-    public readonly status: number;
-    public readonly url?: string;
+    public readonly _cacheHeuristic: number;
+    public readonly _host?: string;
+    public readonly _immutableMinTtl: number;
+    public readonly _isShared: boolean;
+    public readonly _method: HttpMethod;
+    public readonly _noAuthorization: boolean;
+    public readonly _reqHeaders?: IRequestHeaders;
+    public readonly _reqcc: IRequestCacheControl;
+    public readonly _resHeaders: IResponseHeaders;
+    public readonly _rescc: IResponseCacheControl;
+    public readonly _responseTime: number;
+    public readonly _status: number;
+    public readonly _url?: string;
 
-    private readonly trustServerDate: boolean;
+    private readonly _trustServerDate: boolean;
 
     constructor(
         req: IRequest,
@@ -81,28 +82,29 @@ export = class CachePolicy implements ICachePolicyFields {
 
         const reqHeaders = req.headers as IRequestHeaders;
 
-        this.responseTime = Date.now();
-        this.isShared = shared !== false;
-        this.trustServerDate = trustServerDate == null ? true : trustServerDate;
+        this._responseTime = Date.now();
+        this._isShared = shared !== false;
+        this._trustServerDate =
+            trustServerDate == null ? true : trustServerDate;
         // 10% matches IE
-        this.cacheHeuristic = cacheHeuristic == null ? 0.1 : cacheHeuristic;
-        this.immutableMinTtl =
+        this._cacheHeuristic = cacheHeuristic == null ? 0.1 : cacheHeuristic;
+        this._immutableMinTtl =
             immutableMinTimeToLive == null
                 ? defaultImmutableMinTtl
                 : immutableMinTimeToLive;
 
-        this.status = res.status == null ? 200 : res.status;
-        this.resHeaders = cloneDeep(res.headers);
-        this.rescc = parseCacheControl(this.resHeaders['cache-control']);
-        this.method = req.method == null ? 'GET' : req.method;
-        this.url = req.url;
-        this.host = reqHeaders.host;
-        this.noAuthorization = !reqHeaders.authorization;
+        this._status = res.status == null ? 200 : res.status;
+        this._resHeaders = cloneDeep(res.headers);
+        this._rescc = parseCacheControl(this._resHeaders['cache-control']);
+        this._method = req.method == null ? 'GET' : req.method;
+        this._url = req.url;
+        this._host = reqHeaders.host;
+        this._noAuthorization = !reqHeaders.authorization;
         if (res.headers.vary) {
             // Don't keep all request headers if they won't be used
-            this.reqHeaders = cloneDeep(reqHeaders);
+            this._reqHeaders = cloneDeep(reqHeaders);
         }
-        this.reqcc = parseCacheControl(reqHeaders['cache-control']);
+        this._reqcc = parseCacheControl(reqHeaders['cache-control']);
 
         /**
          * Assume that if someone { uses } legacy, non-standard uncecessary
@@ -111,24 +113,24 @@ export = class CachePolicy implements ICachePolicyFields {
          */
         if (
             ignoreCargoCult &&
-            this.rescc['pre-check'] != null &&
-            this.rescc['post-check'] != null
+            this._rescc['pre-check'] != null &&
+            this._rescc['post-check'] != null
         ) {
-            delete this.rescc['pre-check'];
-            delete this.rescc['post-check'];
-            delete this.rescc['no-cache'];
-            delete this.rescc['no-store'];
-            delete this.rescc['must-revalidate'];
+            delete this._rescc['pre-check'];
+            delete this._rescc['post-check'];
+            delete this._rescc['no-cache'];
+            delete this._rescc['no-store'];
+            delete this._rescc['must-revalidate'];
 
-            const cacheControl = formatCacheControl(this.rescc);
+            const cacheControl = formatCacheControl(this._rescc);
             if (cacheControl == null) {
-                delete this.resHeaders['cache-control'];
+                delete this._resHeaders['cache-control'];
             } else {
-                this.resHeaders['cache-control'] = cacheControl;
+                this._resHeaders['cache-control'] = cacheControl;
             }
 
-            delete this.resHeaders.expires;
-            delete this.resHeaders.pragma;
+            delete this._resHeaders.expires;
+            delete this._resHeaders.pragma;
         }
 
         /**
@@ -142,7 +144,7 @@ export = class CachePolicy implements ICachePolicyFields {
             res.headers.pragma != null &&
             /no-cache/.test(res.headers.pragma)
         ) {
-            this.rescc['no-cache'] = true;
+            this._rescc['no-cache'] = true;
         }
     }
 
@@ -152,49 +154,49 @@ export = class CachePolicy implements ICachePolicyFields {
          * store any part of either this request or any response to it.
          */
         return !!(
-            !this.reqcc['no-store'] &&
+            !this._reqcc['no-store'] &&
             /*
              * A cache MUST NOT store a response to any request, unless:
              * - The request method is understood by the cache and defined as
              *   being cacheable, and
              */
-            (this.method === 'GET' ||
-                this.method === 'HEAD' ||
-                (this.method === 'POST' && this.hasExplicitExpiration())) &&
+            (this._method === 'GET' ||
+                this._method === 'HEAD' ||
+                (this._method === 'POST' && this._hasExplicitExpiration())) &&
             // the response status code is understood by the cache, and
-            understoodStatuses.indexOf(this.status) !== -1 &&
+            understoodStatuses.indexOf(this._status) !== -1 &&
             /*
              * - the "no-store" cache directive does not appear in request or
              *   response header fields, and
              */
-            !this.rescc['no-store'] &&
+            !this._rescc['no-store'] &&
             /*
              * - the "private" response directive does not appear in the
                  response if the cache is shared, and
              */
-            (!this.isShared || !this.rescc.private) &&
+            (!this._isShared || !this._rescc.private) &&
             /**
              * - the Authorization header field does not appear in the request,
              *   if the cache is shared,
              */
-            (!this.isShared ||
-                this.noAuthorization ||
-                this.allowsStoringAuthenticated()) &&
+            (!this._isShared ||
+                this._noAuthorization ||
+                this._allowsStoringAuthenticated()) &&
             /**
              * the response either:
              * - contains an Expires header field, or
              */
-            (this.resHeaders.expires ||
+            (this._resHeaders.expires ||
                 /**
                  * - contains a max-age response directive, or
                  * - contains a s-maxage response directive and the cache is shared, or
                  * - contains a public response directive.
                  */
-                this.rescc.public ||
-                this.rescc['max-age'] ||
-                this.rescc['s-maxage'] ||
+                this._rescc.public ||
+                this._rescc['max-age'] ||
+                this._rescc['s-maxage'] ||
                 // has a status code that is defined as cacheable by default
-                defaultCacheableStatusCodes.indexOf(this.status) !== -1)
+                defaultCacheableStatusCodes.indexOf(this._status) !== -1)
         );
     }
 
@@ -244,7 +246,7 @@ export = class CachePolicy implements ICachePolicyFields {
         if (this.stale()) {
             const allowsStale =
                 requestCC['max-stale'] &&
-                !this.rescc['must-revalidate'] &&
+                !this._rescc['must-revalidate'] &&
                 (requestCC['max-stale'] === true ||
                     parseInt(requestCC['max-stale'], 10) >
                         this.age() - this.maxAge());
@@ -253,11 +255,11 @@ export = class CachePolicy implements ICachePolicyFields {
             }
         }
 
-        return this.requestMatches(req, false);
+        return this._requestMatches(req, false);
     }
 
     public responseHeaders() {
-        const headers = this.copyWithoutHopByHopHeaders(this.resHeaders);
+        const headers = this._copyWithoutHopByHopHeaders(this._resHeaders);
         const age = this.age();
 
         /**
@@ -267,7 +269,7 @@ export = class CachePolicy implements ICachePolicyFields {
          */
         if (
             age > 3600 * 24 &&
-            !this.hasExplicitExpiration() &&
+            !this._hasExplicitExpiration() &&
             this.maxAge() > 3600 * 24
         ) {
             const warning = headers.warning ? `${headers.warning}, ` : '';
@@ -285,10 +287,10 @@ export = class CachePolicy implements ICachePolicyFields {
      * @return timestamp
      */
     public date() {
-        if (this.trustServerDate) {
-            return this.serverDate();
+        if (this._trustServerDate) {
+            return this._serverDate();
         }
-        return this.responseTime;
+        return this._responseTime;
     }
 
     /**
@@ -298,15 +300,15 @@ export = class CachePolicy implements ICachePolicyFields {
      * @return Number
      */
     public age() {
-        let age = Math.max(0, (this.responseTime - this.date()) / 1000);
-        if (this.resHeaders.age) {
-            const ageValue = this.ageValue();
+        let age = Math.max(0, (this._responseTime - this.date()) / 1000);
+        if (this._resHeaders.age) {
+            const ageValue = this._ageValue();
             if (ageValue > age) {
                 age = ageValue;
             }
         }
 
-        const residentTime = (Date.now() - this.responseTime) / 1000;
+        const residentTime = (Date.now() - this._responseTime) / 1000;
         return age + residentTime;
     }
 
@@ -319,7 +321,7 @@ export = class CachePolicy implements ICachePolicyFields {
      * @return Number
      */
     public maxAge() {
-        if (!this.storable() || this.rescc['no-cache']) {
+        if (!this.storable() || this._rescc['no-cache']) {
             return 0;
         }
 
@@ -329,28 +331,28 @@ export = class CachePolicy implements ICachePolicyFields {
          * requires explicit opt-in via public header
          */
         if (
-            this.isShared &&
-            (this.resHeaders['set-cookie'] &&
-                !this.rescc.public &&
-                !this.rescc.immutable)
+            this._isShared &&
+            (this._resHeaders['set-cookie'] &&
+                !this._rescc.public &&
+                !this._rescc.immutable)
         ) {
             return 0;
         }
 
-        if (this.resHeaders.vary === '*') {
+        if (this._resHeaders.vary === '*') {
             return 0;
         }
 
-        if (this.isShared) {
-            if (this.rescc['proxy-revalidate']) {
+        if (this._isShared) {
+            if (this._rescc['proxy-revalidate']) {
                 return 0;
             }
             /**
              * if a response includes the s-maxage directive, a shared cache
              * recipient MUST ignore the Expires field.
              */
-            if (this.rescc['s-maxage']) {
-                return parseInt(this.rescc['s-maxage'], 10);
+            if (this._rescc['s-maxage']) {
+                return parseInt(this._rescc['s-maxage'], 10);
             }
         }
 
@@ -358,15 +360,15 @@ export = class CachePolicy implements ICachePolicyFields {
          * If a response includes a Cache-Control field with the max-age
          * directive, a recipient MUST ignore the Expires field.
          */
-        if (this.rescc['max-age']) {
-            return parseInt(this.rescc['max-age'], 10);
+        if (this._rescc['max-age']) {
+            return parseInt(this._rescc['max-age'], 10);
         }
 
-        const defaultMinTtl = this.rescc.immutable ? this.immutableMinTtl : 0;
+        const defaultMinTtl = this._rescc.immutable ? this._immutableMinTtl : 0;
 
-        const dateValue = this.serverDate();
-        if (this.resHeaders.expires) {
-            const expires = Date.parse(this.resHeaders.expires);
+        const dateValue = this._serverDate();
+        if (this._resHeaders.expires) {
+            const expires = Date.parse(this._resHeaders.expires);
             /**
              * A cache recipient MUST interpret invalid date formats, especially
              * the value "0", as representing a time in the past (i.e., "already
@@ -378,12 +380,12 @@ export = class CachePolicy implements ICachePolicyFields {
             return Math.max(defaultMinTtl, (expires - dateValue) / 1000);
         }
 
-        if (this.resHeaders['last-modified'] != null) {
-            const lastModified = Date.parse(this.resHeaders['last-modified']);
+        if (this._resHeaders['last-modified'] != null) {
+            const lastModified = Date.parse(this._resHeaders['last-modified']);
             if (isFinite(lastModified) && dateValue > lastModified) {
                 return Math.max(
                     defaultMinTtl,
-                    ((dateValue - lastModified) / 1000) * this.cacheHeuristic
+                    ((dateValue - lastModified) / 1000) * this._cacheHeuristic
                 );
             }
         }
@@ -401,19 +403,19 @@ export = class CachePolicy implements ICachePolicyFields {
 
     public toObject(): ICachePolicyObject {
         return cloneDeep<ICachePolicyObject>({
-            a: this.noAuthorization,
-            ch: this.cacheHeuristic,
-            h: this.host,
-            imm: this.immutableMinTtl,
-            m: this.method,
-            reqcc: this.reqcc,
-            reqh: this.reqHeaders,
-            rescc: this.rescc,
-            resh: this.resHeaders,
-            sh: this.isShared,
-            st: this.status,
-            t: this.responseTime,
-            u: this.url,
+            a: this._noAuthorization,
+            ch: this._cacheHeuristic,
+            h: this._host,
+            imm: this._immutableMinTtl,
+            m: this._method,
+            reqcc: this._reqcc,
+            reqh: this._reqHeaders,
+            rescc: this._rescc,
+            resh: this._resHeaders,
+            sh: this._isShared,
+            st: this._status,
+            t: this._responseTime,
+            u: this._url,
             v: 1,
         });
     }
@@ -429,12 +431,12 @@ export = class CachePolicy implements ICachePolicyFields {
         assertRequestHasHeaders(incomingReq);
 
         const reqHeaders = incomingReq.headers as IRequestHeaders;
-        const headers = this.copyWithoutHopByHopHeaders(reqHeaders);
+        const headers = this._copyWithoutHopByHopHeaders(reqHeaders);
 
         // This implementation does not understand range requests
         delete headers['if-range'];
 
-        if (!this.requestMatches(incomingReq, true) || !this.storable()) {
+        if (!this._requestMatches(incomingReq, true) || !this.storable()) {
             // revalidation allowed via HEAD
             // not for the same resource, or wasn't allowed to be cached anyway
             delete headers['if-none-match'];
@@ -447,10 +449,10 @@ export = class CachePolicy implements ICachePolicyFields {
          * If-Match or If-None-Match) if an entity-tag has been provided by the
          * origin server.
          */
-        if (this.resHeaders.etag) {
+        if (this._resHeaders.etag) {
             headers['if-none-match'] = headers['if-none-match']
-                ? `${headers['if-none-match']}, ${this.resHeaders.etag}`
-                : this.resHeaders.etag;
+                ? `${headers['if-none-match']}, ${this._resHeaders.etag}`
+                : this._resHeaders.etag;
         }
 
         /**
@@ -462,7 +464,7 @@ export = class CachePolicy implements ICachePolicyFields {
             headers['accept-ranges'] ||
             headers['if-match'] ||
             headers['if-unmodified-since'] ||
-            (this.method && this.method !== 'GET');
+            (this._method && this._method !== 'GET');
 
         /*
          * SHOULD send the Last-Modified value in non-subrange cache validation
@@ -486,10 +488,10 @@ export = class CachePolicy implements ICachePolicyFields {
                 }
             }
         } else if (
-            this.resHeaders['last-modified'] &&
+            this._resHeaders['last-modified'] &&
             !headers['if-modified-since']
         ) {
-            headers['if-modified-since'] = this.resHeaders['last-modified'];
+            headers['if-modified-since'] = this._resHeaders['last-modified'];
         }
 
         return headers;
@@ -529,11 +531,11 @@ export = class CachePolicy implements ICachePolicyFields {
              * any stored responses."
              */
             matches = !!(
-                this.resHeaders.etag &&
-                removeWeakValidatorPrefix(this.resHeaders.etag) ===
+                this._resHeaders.etag &&
+                removeWeakValidatorPrefix(this._resHeaders.etag) ===
                     response.headers.etag
             );
-        } else if (this.resHeaders.etag && response.headers.etag) {
+        } else if (this._resHeaders.etag && response.headers.etag) {
             /*
              * "If the new response contains a weak validator and that validator
              * corresponds to one of the cache's stored responses, then the most
@@ -541,11 +543,11 @@ export = class CachePolicy implements ICachePolicyFields {
              * update."
              */
             matches =
-                removeWeakValidatorPrefix(this.resHeaders.etag) ===
+                removeWeakValidatorPrefix(this._resHeaders.etag) ===
                 removeWeakValidatorPrefix(response.headers.etag);
-        } else if (this.resHeaders['last-modified']) {
+        } else if (this._resHeaders['last-modified']) {
             matches =
-                this.resHeaders['last-modified'] ===
+                this._resHeaders['last-modified'] ===
                 response.headers['last-modified'];
         } else {
             /*
@@ -557,8 +559,8 @@ export = class CachePolicy implements ICachePolicyFields {
              * is selected for update.
              */
             if (
-                !this.resHeaders.etag &&
-                !this.resHeaders['last-modified'] &&
+                !this._resHeaders.etag &&
+                !this._resHeaders['last-modified'] &&
                 !response.headers.etag &&
                 !response.headers['last-modified']
             ) {
@@ -586,85 +588,85 @@ export = class CachePolicy implements ICachePolicyFields {
          * stored response.
          */
         const headers: IResponseHeaders = {};
-        for (const k of Object.keys(this.resHeaders)) {
+        for (const k of Object.keys(this._resHeaders)) {
             headers[k] =
                 response.headers[k] != null &&
                 !excludedFromRevalidationUpdate.has(k)
                     ? response.headers[k]
-                    : this.resHeaders[k];
+                    : this._resHeaders[k];
         }
 
         const newResponse = {
             ...response,
             headers,
-            method: this.method,
-            status: this.status,
+            method: this._method,
+            status: this._status,
         };
 
         return {
             matches: true,
             modified: false,
             policy: new CachePolicy(request, newResponse, {
-                cacheHeuristic: this.cacheHeuristic,
-                immutableMinTimeToLive: this.immutableMinTtl,
-                shared: this.isShared,
-                trustServerDate: this.trustServerDate,
+                cacheHeuristic: this._cacheHeuristic,
+                immutableMinTimeToLive: this._immutableMinTtl,
+                shared: this._isShared,
+                trustServerDate: this._trustServerDate,
             }),
         };
     }
 
-    private hasExplicitExpiration() {
+    private _hasExplicitExpiration() {
         // 4.2.1 Calculating Freshness Lifetime
         return (
-            (this.isShared && this.rescc['s-maxage']) ||
-            this.rescc['max-age'] ||
-            this.resHeaders.expires
+            (this._isShared && this._rescc['s-maxage']) ||
+            this._rescc['max-age'] ||
+            this._resHeaders.expires
         );
     }
 
-    private requestMatches(req: IRequest, allowHeadMethod: boolean) {
+    private _requestMatches(req: IRequest, allowHeadMethod: boolean) {
         const reqHeaders = req.headers as IRequestHeaders;
         // The presented effective request URI and that of the stored response
         // match, and
         return (
-            (!this.url || this.url === req.url) &&
-            this.host === reqHeaders.host &&
+            (!this._url || this._url === req.url) &&
+            this._host === reqHeaders.host &&
             // the request method associated with the stored response allows
             // it to be used for the presented request, and
             (!req.method ||
-                this.method === req.method ||
+                this._method === req.method ||
                 (allowHeadMethod && req.method === 'HEAD')) &&
             // selecting header fields nominated by the stored response (if any)
             // match those presented, and
-            this.varyMatches(req)
+            this._varyMatches(req)
         );
     }
 
-    private allowsStoringAuthenticated() {
+    private _allowsStoringAuthenticated() {
         /**
          * following Cache-Control response directives (Section 5.2.2) have
          * such an effect: must-revalidate, public, and s-maxage.
          */
         return (
-            this.rescc['must-revalidate'] ||
-            this.rescc.public ||
-            this.rescc['s-maxage']
+            this._rescc['must-revalidate'] ||
+            this._rescc.public ||
+            this._rescc['s-maxage']
         );
     }
 
-    private varyMatches(req: IRequest) {
+    private _varyMatches(req: IRequest) {
         assertRequestHasHeaders(req);
 
-        if (!this.resHeaders.vary || this.reqHeaders == null) {
+        if (!this._resHeaders.vary || this._reqHeaders == null) {
             return true;
         }
 
         // A Vary header field-value of "*" always fails to match
-        if (this.resHeaders.vary === '*') {
+        if (this._resHeaders.vary === '*') {
             return false;
         }
 
-        const fields = this.resHeaders.vary
+        const fields = this._resHeaders.vary
             .trim()
             .toLowerCase()
             .split(/\s*,\s*/);
@@ -672,7 +674,7 @@ export = class CachePolicy implements ICachePolicyFields {
         const reqHeaders = req.headers as IRequestHeaders;
 
         for (const name of fields) {
-            if (reqHeaders[name] !== this.reqHeaders[name]) {
+            if (reqHeaders[name] !== this._reqHeaders[name]) {
                 return false;
             }
         }
@@ -680,7 +682,7 @@ export = class CachePolicy implements ICachePolicyFields {
         return true;
     }
 
-    private copyWithoutHopByHopHeaders(inHeaders: Headers) {
+    private _copyWithoutHopByHopHeaders(inHeaders: Headers) {
         const headers: Headers = {};
 
         for (const name of Object.keys(inHeaders)) {
@@ -709,21 +711,21 @@ export = class CachePolicy implements ICachePolicyFields {
         return headers;
     }
 
-    private ageValue() {
-        const ageValue = parseInt(this.resHeaders.age as string, 10);
+    private _ageValue() {
+        const ageValue = parseInt(this._resHeaders.age as string, 10);
         return isFinite(ageValue) ? ageValue : 0;
     }
 
-    private serverDate() {
-        const dateValue = Date.parse(this.resHeaders.date as string);
+    private _serverDate() {
+        const dateValue = Date.parse(this._resHeaders.date as string);
         if (isFinite(dateValue)) {
             const maxClockDrift = 8 * 3600 * 1000;
-            const clockDrift = Math.abs(this.responseTime - dateValue);
+            const clockDrift = Math.abs(this._responseTime - dateValue);
             if (clockDrift < maxClockDrift) {
                 return dateValue;
             }
         }
-        return this.responseTime;
+        return this._responseTime;
     }
 };
 

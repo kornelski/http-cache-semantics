@@ -1,17 +1,17 @@
 export interface ICachePolicyFields {
-    cacheHeuristic: number;
-    host?: string;
-    immutableMinTtl: number;
-    isShared: boolean;
-    method: string;
-    noAuthorization: boolean;
-    reqHeaders?: IRequestHeaders;
-    reqcc: IRequestCacheControl;
-    resHeaders: IResponseHeaders;
-    rescc: IResponseCacheControl;
-    responseTime: number;
-    status: number;
-    url?: string;
+    _cacheHeuristic: number;
+    _host?: string;
+    _immutableMinTtl: number;
+    _isShared: boolean;
+    _method: string;
+    _noAuthorization: boolean;
+    _reqHeaders?: IRequestHeaders;
+    _reqcc: IRequestCacheControl;
+    _resHeaders: IResponseHeaders;
+    _rescc: IResponseCacheControl;
+    _responseTime: number;
+    _status: number;
+    _url?: string;
 }
 
 interface IHeadersBase {
