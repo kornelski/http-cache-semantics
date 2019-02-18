@@ -14,6 +14,132 @@ import {
 
 import cloneDeep = require('lodash.clonedeep');
 
+// rfc7231 6.1
+const defaultCacheableStatusCodes = [
+    200,
+    203,
+    204,
+    206,
+    300,
+    301,
+    404,
+    405,
+    410,
+    414,
+    501,
+];
+
+// This implementation does not understand partial responses (206)
+const understoodStatuses = [
+    200,
+    203,
+    204,
+    300,
+    301,
+    302,
+    303,
+    307,
+    308,
+    404,
+    405,
+    410,
+    414,
+    501,
+];
+
+// 24 hours
+const defaultImmutableMinTtl = 24 * 60 * 60 * 1000;
+
+const hopByHopHeaders = new Set([
+    'connection',
+    'date',
+    'keep-alive',
+    'proxy-authenticate',
+    'proxy-authorization',
+    'te',
+    'trailer',
+    'transfer-encoding',
+    'upgrade',
+]);
+
+/*
+ * Since the old body is reused, it doesn't make sense to change properties
+ * of the body
+ */
+const excludedFromRevalidationUpdate = new Set([
+    'content-encoding',
+    'content-length',
+    'content-range',
+    'transfer-encoding',
+]);
+
+function shouldRespectPragma(headers: Headers) {
+    return (
+        headers['cache-control'] == null &&
+        headers.pragma != null &&
+        headers.pragma.includes('no-cache')
+    );
+}
+
+function parseCacheControl(header?: string): CacheControl {
+    if (!header) {
+        return {};
+    }
+
+    /**
+     * TODO: When there is more than one value present for a given directive
+     * (e.g., two Expires header fields, multiple Cache-Control: max-age
+     * directives), the directive's value is considered invalid. Caches are
+     * encouraged to consider responses that have invalid freshness information
+     * to be stale
+     */
+
+    // TODO: lame parsing
+    return header
+        .trim()
+        .split(/\s*,\s*/)
+        .reduce<CacheControl>((cacheControl, part) => {
+            const [k, v] = part.split(/\s*=\s*/, 2);
+            return {
+                ...cacheControl,
+                // TODO: lame unquoting
+                [k]: v == null ? true : v.replace(/^"|"$/g, ''),
+            };
+        }, {});
+}
+
+function formatCacheControl(cc: IRequestCacheControl | IResponseCacheControl) {
+    const keys = Object.keys(cc);
+
+    if (!keys.length) {
+        return;
+    }
+
+    return Object.keys(cc)
+        .map(k => {
+            const v = cc[k];
+            return v === true ? k : `${k}=${v}`;
+        })
+        .join(', ');
+}
+
+const weakValidatorPrefix = /^\s*W\//;
+
+function isStronglyValidated(etag: string) {
+    return !weakValidatorPrefix.test(etag);
+}
+
+function removeWeakValidatorPrefix(etag: string) {
+    return etag.replace(weakValidatorPrefix, '');
+}
+
+function assertRequestHasHeaders(req?: IRequest) {
+    if (!req || !req.headers) {
+        throw Error('Request headers missing');
+    }
+    return true;
+}
+
 export = class CachePolicy implements ICachePolicyFields {
     public static fromObject(obj: ICachePolicyObject): CachePolicy {
         if (!obj || obj.v !== 1) {
@@ -139,11 +265,7 @@ export = class CachePolicy implements ICachePolicyFields {
          * the same effect as if "Cache-Control: no-cache" were present
          * (see Section 5.2.1).
          */
-        if (
-            res.headers['cache-control'] == null &&
-            res.headers.pragma != null &&
-            /no-cache/.test(res.headers.pragma)
-        ) {
+        if (shouldRespectPragma(res.headers)) {
             this._rescc['no-cache'] = true;
         }
     }
@@ -217,10 +339,7 @@ export = class CachePolicy implements ICachePolicyFields {
             reqHeaders['cache-control']
         ) as IRequestCacheControl;
 
-        if (
-            requestCC['no-cache'] != null ||
-            (reqHeaders.pragma != null && /no-cache/.test(reqHeaders.pragma))
-        ) {
+        if (requestCC['no-cache'] != null || shouldRespectPragma(reqHeaders)) {
             return false;
         }
 
@@ -267,14 +386,17 @@ export = class CachePolicy implements ICachePolicyFields {
          * freshness lifetime greater than 24 hours and the response's age is
          * greater than 24 hours.
          */
+
+        const warningThreshold = 24 * 60 * 60;
         if (
-            age > 3600 * 24 &&
+            age > warningThreshold &&
             !this._hasExplicitExpiration() &&
-            this.maxAge() > 3600 * 24
+            this.maxAge() > warningThreshold
         ) {
             const warning = headers.warning ? `${headers.warning}, ` : '';
             headers.warning = `${warning}113 - "rfc7234 5.5.4"`;
         }
+
         headers.age = `${Math.round(age)}`;
         headers.date = new Date(Date.now()).toUTCString();
         return headers;
@@ -374,7 +496,7 @@ export = class CachePolicy implements ICachePolicyFields {
              * the value "0", as representing a time in the past (i.e., "already
              * expired").
              */
-            if (Number.isNaN(expires) || expires < dateValue) {
+            if (isNaN(expires) || expires < dateValue) {
                 return 0;
             }
             return Math.max(defaultMinTtl, (expires - dateValue) / 1000);
@@ -382,7 +504,7 @@ export = class CachePolicy implements ICachePolicyFields {
 
         if (this._resHeaders['last-modified'] != null) {
             const lastModified = Date.parse(this._resHeaders['last-modified']);
-            if (isFinite(lastModified) && dateValue > lastModified) {
+            if (!isNaN(lastModified) && dateValue > lastModified) {
                 return Math.max(
                     defaultMinTtl,
                     ((dateValue - lastModified) / 1000) * this._cacheHeuristic
@@ -699,9 +821,9 @@ export = class CachePolicy implements ICachePolicyFields {
             }
         }
         if (headers.warning) {
-            const warnings = headers.warning.split(',').filter(warning => {
-                return !/^\s*1[0-9][0-9]/.test(warning);
-            });
+            const warnings = headers.warning
+                .split(',')
+                .filter(warning => !/^\s*1[0-9][0-9]/.test(warning));
             if (!warnings.length) {
                 delete headers.warning;
             } else {
@@ -713,13 +835,13 @@ export = class CachePolicy implements ICachePolicyFields {
 
     private _ageValue() {
         const ageValue = parseInt(this._resHeaders.age as string, 10);
-        return isFinite(ageValue) ? ageValue : 0;
+        return isNaN(ageValue) ? 0 : ageValue;
     }
 
     private _serverDate() {
         const dateValue = Date.parse(this._resHeaders.date as string);
-        if (isFinite(dateValue)) {
-            const maxClockDrift = 8 * 3600 * 1000;
+        if (!isNaN(dateValue)) {
+            const maxClockDrift = 8 * 60 * 60 * 1000;
             const clockDrift = Math.abs(this._responseTime - dateValue);
             if (clockDrift < maxClockDrift) {
                 return dateValue;
@@ -728,116 +850,3 @@ export = class CachePolicy implements ICachePolicyFields {
         return this._responseTime;
     }
 };
-
-// rfc7231 6.1
-const defaultCacheableStatusCodes = [
-    200,
-    203,
-    204,
-    206,
-    300,
-    301,
-    404,
-    405,
-    410,
-    414,
-    501,
-];
-
-// This implementation does not understand partial responses (206)
-const understoodStatuses = [
-    200,
-    203,
-    204,
-    300,
-    301,
-    302,
-    303,
-    307,
-    308,
-    404,
-    405,
-    410,
-    414,
-    501,
-];
-
-// 24 hours
-const defaultImmutableMinTtl = 24 * 60 * 60 * 1000;
-
-const hopByHopHeaders = new Set([
-    'connection',
-    'date',
-    'keep-alive',
-    'proxy-authenticate',
-    'proxy-authorization',
-    'te',
-    'trailer',
-    'transfer-encoding',
-    'upgrade',
-]);
-
-/*
- * Since the old body is reused, it doesn't make sense to change properties
- * of the body
- */
-const excludedFromRevalidationUpdate = new Set([
-    'content-encoding',
-    'content-length',
-    'content-range',
-    'transfer-encoding',
-]);
-
-const weakValidatorPrefix = /^\s*W\//;
-
-function parseCacheControl(header?: string): CacheControl {
-    const cc: CacheControl = {};
-    if (!header) {
-        return cc;
-    }
-
-    /**
-     * TODO: When there is more than one value present for a given directive
-     * (e.g., two Expires header fields, multiple Cache-Control: max-age
-     * directives), the directive's value is considered invalid. Caches are
-     * encouraged to consider responses that have invalid freshness information
-     * to be stale
-     */
-
-    // TODO: lame parsing
-    const parts = header.trim().split(/\s*,\s*/);
-    for (const part of parts) {
-        const [k, v] = part.split(/\s*=\s*/, 2);
-        // TODO: lame unquoting
-        cc[k] = v == null ? true : v.replace(/^"|"$/g, '');
-    }
-
-    return cc;
-}
-
-function formatCacheControl(cc: IRequestCacheControl | IResponseCacheControl) {
-    const parts = [];
-    for (const k of Object.keys(cc)) {
-        const v = cc[k];
-        parts.push(v === true ? k : `${k}=${v}`);
-    }
-    if (!parts.length) {
-        return;
-    }
-    return parts.join(', ');
-}
-
-function isStronglyValidated(etag: string) {
-    return !weakValidatorPrefix.test(etag);
-}
-
-function removeWeakValidatorPrefix(etag: string) {
-    return etag.replace(weakValidatorPrefix, '');
-}
-
-function assertRequestHasHeaders(req?: IRequest) {
-    if (!req || !req.headers) {
-        throw Error('Request headers missing');
-    }
-    return true;
-}
