@@ -99,7 +99,7 @@ test('pre-check poison undefined header', () => {
     expect(cache.storable()).toBeTruthy();
     expect(cache.maxAge()).toEqual(0);
 
-    expect(cache.responseHeaders()).toHaveProperty('cache-control', undefined);
+    expect(cache.responseHeaders()).not.toHaveProperty('cache-control');
     expect(res.headers).toHaveProperty('expires', expires);
     expect(cache.responseHeaders()).not.toHaveProperty('expires');
 });

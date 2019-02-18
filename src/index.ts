@@ -12,13 +12,15 @@ import {
     IResponseHeaders,
 } from './types';
 
+import cloneDeep = require('lodash.clonedeep');
+
 export = class CachePolicy implements ICachePolicyFields {
     public static fromObject(obj: ICachePolicyObject): CachePolicy {
         if (!obj || obj.v !== 1) {
             throw Error('Invalid serialization');
         }
 
-        const policy: ICachePolicyFields = {
+        const policy = cloneDeep<ICachePolicyFields>({
             cacheHeuristic: obj.ch,
             host: obj.h,
             immutableMinTtl: obj.imm == null ? defaultImmutableMinTtl : obj.imm,
@@ -32,7 +34,7 @@ export = class CachePolicy implements ICachePolicyFields {
             responseTime: obj.t,
             status: obj.st,
             url: obj.u,
-        };
+        });
 
         return Object.assign(Object.create(CachePolicy.prototype), policy);
     }
@@ -90,15 +92,15 @@ export = class CachePolicy implements ICachePolicyFields {
                 : immutableMinTimeToLive;
 
         this.status = res.status == null ? 200 : res.status;
-        this.resHeaders = res.headers;
-        this.rescc = parseCacheControl(res.headers['cache-control']);
+        this.resHeaders = cloneDeep(res.headers);
+        this.rescc = parseCacheControl(this.resHeaders['cache-control']);
         this.method = req.method == null ? 'GET' : req.method;
         this.url = req.url;
         this.host = reqHeaders.host;
         this.noAuthorization = !reqHeaders.authorization;
         if (res.headers.vary) {
             // Don't keep all request headers if they won't be used
-            this.reqHeaders = reqHeaders;
+            this.reqHeaders = cloneDeep(reqHeaders);
         }
         this.reqcc = parseCacheControl(reqHeaders['cache-control']);
 
@@ -117,10 +119,14 @@ export = class CachePolicy implements ICachePolicyFields {
             delete this.rescc['no-cache'];
             delete this.rescc['no-store'];
             delete this.rescc['must-revalidate'];
-            this.resHeaders = {
-                ...this.resHeaders,
-                'cache-control': formatCacheControl(this.rescc),
-            };
+
+            const cacheControl = formatCacheControl(this.rescc);
+            if (cacheControl == null) {
+                delete this.resHeaders['cache-control'];
+            } else {
+                this.resHeaders['cache-control'] = cacheControl;
+            }
+
             delete this.resHeaders.expires;
             delete this.resHeaders.pragma;
         }
@@ -394,7 +400,7 @@ export = class CachePolicy implements ICachePolicyFields {
     }
 
     public toObject(): ICachePolicyObject {
-        return {
+        return cloneDeep<ICachePolicyObject>({
             a: this.noAuthorization,
             ch: this.cacheHeuristic,
             h: this.host,
@@ -409,7 +415,7 @@ export = class CachePolicy implements ICachePolicyFields {
             t: this.responseTime,
             u: this.url,
             v: 1,
-        };
+        });
     }
 
     /**
