@@ -5,3 +5,7 @@ node_js:
     - '10'
     - '8'
     - '6'
+script:
+    - npm run lint:project
+    - npm run build
+    - npm test

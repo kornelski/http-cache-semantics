@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+
+/**
+ * This little script allows lint-staged to typecheck a single file
+ * with all of the options from tsconfig.json, as tsc doesn't support passing
+ * in a config file along with a list of files to compile or typecheck.
+ */
+
+// tslint:disable no-var-requires
+
+const path = require('path');
+const fs = require('fs');
+const childProcess = require('child_process');
+
+execTsc();
+
+function execTsc() {
+    const args = [
+        ...readCompilerOptions(),
+        '--noEmit',
+        ...process.argv.slice(2),
+    ];
+
+    const child = childProcess.spawn('tsc', args);
+
+    child.stdout.pipe(process.stdout);
+    child.stderr.pipe(process.stderr);
+
+    child.on('exit', process.exit);
+}
+
+function readCompilerOptions() {
+    const tsconfigPath = path.resolve(__dirname, 'tsconfig.json');
+    const { compilerOptions = {} } = JSON.parse(fs.readFileSync(tsconfigPath));
+
+    const args = [];
+    for (const k of Object.keys(compilerOptions)) {
+        const v = compilerOptions[k];
+        args.push(`--${k}`, Array.isArray(v) ? v.join(',') : v);
+    }
+
+    return args;
+}

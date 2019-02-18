@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "alwaysStrict": true,
+        "declaration": true,
+        "declarationMap": true,
+        "esModuleInterop": true,
+        "module": "commonjs",
+        "outDir": "./lib",
+        "removeComments": false,
+        "rootDir": "./src",
+        "sourceMap": true,
+        "strict": true,
+        "target": "es6"
+    },
+    "exclude": ["lib"]
+}

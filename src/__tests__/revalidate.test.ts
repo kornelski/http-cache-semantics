@@ -1,174 +1,183 @@
-'use strict';
+import CachePolicy = require('..');
+import { Headers, IRequest } from '../types';
 
-const assert = require('assert');
-const CachePolicy = require('..');
-
-const simpleRequest = {
-    method: 'GET',
+const simpleRequest: IRequest = {
     headers: {
-        host: 'www.w3c.org',
         connection: 'close',
+        host: 'www.w3c.org',
         'x-custom': 'yes',
     },
+    method: 'GET',
     url: '/Protocols/rfc2616/rfc2616-sec14.html',
 };
-function simpleRequestBut(overrides) {
-    return Object.assign({}, simpleRequest, overrides);
+function simpleRequestBut(overrides: Partial<IRequest>) {
+    return { ...simpleRequest, ...overrides };
 }
 
 const cacheableResponse = { headers: { 'cache-control': 'max-age=111' } };
 const etaggedResponse = {
-    headers: Object.assign({ etag: '"123456789"' }, cacheableResponse.headers),
+    headers: { etag: '"123456789"', ...cacheableResponse.headers },
 };
 const lastModifiedResponse = {
-    headers: Object.assign(
-        { 'last-modified': 'Tue, 15 Nov 1994 12:45:26 GMT' },
-        cacheableResponse.headers
-    ),
+    headers: {
+        'last-modified': 'Tue, 15 Nov 1994 12:45:26 GMT',
+        ...cacheableResponse.headers,
+    },
 };
 const multiValidatorResponse = {
-    headers: Object.assign(
-        {},
-        etaggedResponse.headers,
-        lastModifiedResponse.headers
-    ),
+    headers: { ...etaggedResponse.headers, ...lastModifiedResponse.headers },
 };
 const alwaysVariableResponse = {
-    headers: Object.assign({ vary: '*' }, cacheableResponse.headers),
+    headers: { vary: '*', ...cacheableResponse.headers },
 };
 
-function assertHeadersPassed(headers) {
-    assert.strictEqual(headers.connection, undefined);
-    assert.strictEqual(headers['x-custom'], 'yes');
+function expectHeadersPassed(headers: Headers) {
+    expect(headers.connection).toBeUndefined();
+    expect(headers['x-custom']).toEqual('yes');
 }
-function assertNoValidators(headers) {
-    assert.strictEqual(headers['if-none-match'], undefined);
-    assert.strictEqual(headers['if-modified-since'], undefined);
+function expectNoValidators(headers: Headers) {
+    expect(headers['if-none-match']).toBeUndefined();
+    expect(headers['if-modified-since']).toBeUndefined();
 }
 
-describe('Can be revalidated?', function() {
-    it('ok if method changes to HEAD', function() {
+describe('Can be revalidated?', () => {
+    test('ok if method changes to HEAD', () => {
         const cache = new CachePolicy(simpleRequest, etaggedResponse);
         const headers = cache.revalidationHeaders(
             simpleRequestBut({ method: 'HEAD' })
         );
-        assertHeadersPassed(headers);
-        assert.equal(headers['if-none-match'], '"123456789"');
+        expectHeadersPassed(headers);
+        expect(headers['if-none-match']).toEqual('"123456789"');
     });
 
-    it('not if method mismatch (other than HEAD)', function() {
+    test('not if method mismatch (other than HEAD)', () => {
         const cache = new CachePolicy(simpleRequest, etaggedResponse);
         const incomingRequest = simpleRequestBut({ method: 'POST' });
         const headers = cache.revalidationHeaders(incomingRequest);
-        assertHeadersPassed(headers);
-        assertNoValidators(headers);
+        expectHeadersPassed(headers);
+        expectNoValidators(headers);
     });
 
-    it('not if url mismatch', function() {
+    test('not if url mismatch', () => {
         const cache = new CachePolicy(simpleRequest, etaggedResponse);
         const incomingRequest = simpleRequestBut({ url: '/yomomma' });
         const headers = cache.revalidationHeaders(incomingRequest);
-        assertHeadersPassed(headers);
-        assertNoValidators(headers);
+        expectHeadersPassed(headers);
+        expectNoValidators(headers);
     });
 
-    it('not if host mismatch', function() {
+    test('not if host mismatch', () => {
         const cache = new CachePolicy(simpleRequest, etaggedResponse);
         const incomingRequest = simpleRequestBut({
             headers: { host: 'www.w4c.org' },
         });
         const headers = cache.revalidationHeaders(incomingRequest);
-        assertNoValidators(headers);
-        assert.strictEqual(headers['x-custom'], undefined);
+        expectNoValidators(headers);
+        expect(headers['x-custom']).toBeUndefined();
     });
 
-    it('not if vary fields prevent', function() {
+    test('not if vary fields prevent', () => {
         const cache = new CachePolicy(simpleRequest, alwaysVariableResponse);
         const headers = cache.revalidationHeaders(simpleRequest);
-        assertHeadersPassed(headers);
-        assertNoValidators(headers);
+        expectHeadersPassed(headers);
+        expectNoValidators(headers);
     });
 
-    it('when entity tag validator is present', function() {
+    test('when entity tag validator is present', () => {
         const cache = new CachePolicy(simpleRequest, etaggedResponse);
         const headers = cache.revalidationHeaders(simpleRequest);
-        assertHeadersPassed(headers);
-        assert.equal(headers['if-none-match'], '"123456789"');
+        expectHeadersPassed(headers);
+        expect(headers['if-none-match']).toEqual('"123456789"');
     });
 
-    it('skips weak validtors on post', function() {
+    test('skips weak validtors on post', () => {
         const postReq = simpleRequestBut({
+            headers: {
+                'if-none-match': 'W/"weak", "strong", W/"weak2"',
+            },
             method: 'POST',
-            headers: { 'if-none-match': 'W/"weak", "strong", W/"weak2"' },
         });
         const cache = new CachePolicy(postReq, multiValidatorResponse);
         const headers = cache.revalidationHeaders(postReq);
-        assert.equal(headers['if-none-match'], '"strong", "123456789"');
-        assert.strictEqual(undefined, headers['if-modified-since']);
+        expect(headers['if-none-match']).toEqual('"strong", "123456789"');
+        expect(headers['if-modified-since']).toBeUndefined();
     });
 
-    it('skips weak validtors on post 2', function() {
+    test('skips weak validtors on post 2', () => {
         const postReq = simpleRequestBut({
+            headers: {
+                'if-none-match': 'W/"weak"',
+            },
             method: 'POST',
-            headers: { 'if-none-match': 'W/"weak"' },
         });
         const cache = new CachePolicy(postReq, lastModifiedResponse);
         const headers = cache.revalidationHeaders(postReq);
-        assert.strictEqual(undefined, headers['if-none-match']);
-        assert.strictEqual(undefined, headers['if-modified-since']);
+        expect(headers['if-none-match']).toBeUndefined();
+        expect(headers['if-modified-since']).toBeUndefined();
     });
 
-    it('merges validtors', function() {
+    test('merges validtors', () => {
         const postReq = simpleRequestBut({
             headers: { 'if-none-match': 'W/"weak", "strong", W/"weak2"' },
         });
         const cache = new CachePolicy(postReq, multiValidatorResponse);
         const headers = cache.revalidationHeaders(postReq);
-        assert.equal(
-            headers['if-none-match'],
+        expect(headers['if-none-match']).toEqual(
             'W/"weak", "strong", W/"weak2", "123456789"'
         );
-        assert.equal(
-            'Tue, 15 Nov 1994 12:45:26 GMT',
-            headers['if-modified-since']
-        );
-    });
-
-    it('when last-modified validator is present', function() {
-        const cache = new CachePolicy(simpleRequest, lastModifiedResponse);
-        const headers = cache.revalidationHeaders(simpleRequest);
-        assertHeadersPassed(headers);
-        assert.equal(
-            headers['if-modified-since'],
+        expect(headers['if-modified-since']).toEqual(
             'Tue, 15 Nov 1994 12:45:26 GMT'
         );
-        assert(!/113/.test(headers.warning));
     });
 
-    it('not without validators', function() {
+    test('when last-modified validator is present', () => {
+        const cache = new CachePolicy(simpleRequest, lastModifiedResponse);
+        const headers = cache.revalidationHeaders(simpleRequest);
+        expectHeadersPassed(headers);
+        expect(headers['if-modified-since']).toEqual(
+            'Tue, 15 Nov 1994 12:45:26 GMT'
+        );
+        expect(headers).not.toHaveProperty('warning');
+    });
+
+    test('not without validators', () => {
         const cache = new CachePolicy(simpleRequest, cacheableResponse);
         const headers = cache.revalidationHeaders(simpleRequest);
-        assertHeadersPassed(headers);
-        assertNoValidators(headers);
-        assert(!/113/.test(headers.warning));
+        expectHeadersPassed(headers);
+        expectNoValidators(headers);
+        expect(headers).not.toHaveProperty('warning');
     });
 
-    it('113 added', function() {
+    test('113 added', () => {
         const veryOldResponse = {
             headers: {
-                age: 3600 * 72,
+                age: `${3600 * 72}`,
                 'last-modified': 'Tue, 15 Nov 1994 12:45:26 GMT',
             },
         };
 
         const cache = new CachePolicy(simpleRequest, veryOldResponse);
-        const headers = cache.responseHeaders(simpleRequest);
-        assert(/113/.test(headers.warning));
+        const headers = cache.responseHeaders();
+        expect(headers.warning).toContain('113');
+    });
+
+    test('113 added to existing warning', () => {
+        const warning = 'existing warning';
+        const oldResponseWithWarning = {
+            headers: {
+                age: `${3600 * 72}`,
+                'last-modified': 'Tue, 15 Nov 1994 12:45:26 GMT',
+                warning,
+            },
+        };
+        const cache = new CachePolicy(simpleRequest, oldResponseWithWarning);
+        const headers = cache.responseHeaders();
+        expect(headers.warning).toContain(`${warning}, 113`);
     });
 });
 
-describe('Validation request', function() {
-    it('removes warnings', function() {
+describe('Validation request', () => {
+    test('removes warnings', () => {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -178,19 +187,19 @@ describe('Validation request', function() {
             }
         );
 
-        assert.strictEqual(undefined, cache.responseHeaders().warning);
+        expect(cache.responseHeaders()).not.toHaveProperty('warning');
     });
 
-    it('must contain any etag', function() {
+    test('must contain any etag', () => {
         const cache = new CachePolicy(simpleRequest, multiValidatorResponse);
         const expected = multiValidatorResponse.headers.etag;
         const actual = cache.revalidationHeaders(simpleRequest)[
             'if-none-match'
         ];
-        assert.equal(actual, expected);
+        expect(actual).toEqual(expected);
     });
 
-    it('merges etags', function() {
+    test('merges etags', () => {
         const cache = new CachePolicy(simpleRequest, etaggedResponse);
         const expected = `"foo", "bar", ${etaggedResponse.headers.etag}`;
         const headers = cache.revalidationHeaders(
@@ -201,38 +210,40 @@ describe('Validation request', function() {
                 },
             })
         );
-        assert.equal(headers['if-none-match'], expected);
+        expect(headers['if-none-match']).toEqual(expected);
     });
 
-    it('should send the Last-Modified value', function() {
+    test('should send the Last-Modified value', () => {
         const cache = new CachePolicy(simpleRequest, multiValidatorResponse);
         const expected = multiValidatorResponse.headers['last-modified'];
         const actual = cache.revalidationHeaders(simpleRequest)[
             'if-modified-since'
         ];
-        assert.equal(actual, expected);
+        expect(actual).toEqual(expected);
     });
 
-    it('should not send the Last-Modified value for POST', function() {
-        const postReq = {
+    test('should not send the Last-Modified value for POST', () => {
+        const postReq: IRequest = {
+            headers: {
+                'if-modified-since': 'yesterday',
+            },
             method: 'POST',
-            headers: { 'if-modified-since': 'yesterday' },
         };
         const cache = new CachePolicy(postReq, lastModifiedResponse);
         const actual = cache.revalidationHeaders(postReq)['if-modified-since'];
-        assert.equal(actual, undefined);
+        expect(actual).toBeUndefined();
     });
 
-    it('should not send the Last-Modified value for range requests', function() {
-        const rangeReq = {
-            method: 'GET',
+    test('should not send the Last-Modified value for range requests', () => {
+        const rangeReq: IRequest = {
             headers: {
                 'accept-ranges': '1-3',
                 'if-modified-since': 'yesterday',
             },
+            method: 'GET',
         };
         const cache = new CachePolicy(rangeReq, lastModifiedResponse);
         const actual = cache.revalidationHeaders(rangeReq)['if-modified-since'];
-        assert.equal(actual, undefined);
+        expect(actual).toBeUndefined();
     });
 });

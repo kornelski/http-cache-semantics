@@ -1,3 +1,10 @@
 {
-    "*.{js,json,md,yml,yaml}": ["prettier-eslint --write", "git add"]
+    "*.ts": [
+        "npm run lint:fix",
+        "npm run format",
+        "npm run typecheck",
+        "git add"
+    ],
+    "*.js": ["npm run lint:fix", "npm run format", "git add"],
+    "*.{json,md,yml,yaml}": ["npm run format", "git add"]
 }
