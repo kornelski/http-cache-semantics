@@ -7,6 +7,6 @@
         "variable-name": [true, "check-format", "allow-leading-underscore"]
     },
     "linterOptions": {
-        "exclude": ["lib/**/*"]
+        "exclude": ["dist/**/*"]
     }
 }

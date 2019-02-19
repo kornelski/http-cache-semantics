@@ -5,12 +5,12 @@
         "declarationMap": true,
         "esModuleInterop": true,
         "module": "commonjs",
-        "outDir": "./lib",
+        "outDir": "./dist",
         "removeComments": false,
         "rootDir": "./src",
         "sourceMap": true,
         "strict": true,
         "target": "es6"
     },
-    "exclude": ["lib"]
+    "exclude": ["dist"]
 }
