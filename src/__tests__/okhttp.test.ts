@@ -1,5 +1,4 @@
 import CachePolicy = require('..');
-import { HttpMethod, IResponse, IResponseHeaders } from '../types';
 
 test.each([
     // Test each documented HTTP/1.1 code, plus the first unused value in each range.
@@ -53,13 +52,13 @@ test.each([
     [false, 505],
     [false, 506],
 ])('storable is %s for response code %s', (shouldPut, responseCode) => {
-    const headers: IResponseHeaders = {
+    const headers: CachePolicy.ResponseHeaders = {
         expires: formatDate(1, 3600),
         'last-modified': formatDate(-1, 3600),
         'www-authenticate': 'challenge',
     };
 
-    const mockResponse: IResponse = {
+    const mockResponse: CachePolicy.Response = {
         body: 'ABCDE',
         headers,
         status: responseCode,
@@ -172,7 +171,7 @@ test('max age preferred over higher max age', () => {
 
 test.each([['OPTIONS', 'PUT', 'DELETE', 'TRACE']])(
     '%s is not cached',
-    (method: HttpMethod) => {
+    (method: CachePolicy.HttpMethod) => {
         // 1. seed the cache (potentially)
         // 2. expect a cache hit or miss
         const cache = new CachePolicy(

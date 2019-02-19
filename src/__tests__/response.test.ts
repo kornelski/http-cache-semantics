@@ -1,7 +1,6 @@
 import CachePolicy = require('..');
-import { IRequest } from '../types';
 
-const req: IRequest = { method: 'GET', headers: {} };
+const req: CachePolicy.Request = { method: 'GET', headers: {} };
 
 test('simple miss', () => {
     const cache = new CachePolicy(req, { headers: {} });

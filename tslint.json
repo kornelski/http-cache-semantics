@@ -1,6 +1,9 @@
 {
     "extends": ["tslint:latest", "tslint-config-prettier"],
     "rules": {
+        "interface-name": false,
+        "no-empty-interface": false,
+        "no-namespace": false,
         "variable-name": [true, "check-format", "allow-leading-underscore"]
     },
     "linterOptions": {

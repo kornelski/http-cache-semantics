@@ -1,7 +1,6 @@
 import CachePolicy = require('..');
-import { Headers, IRequest, IRequestHeaders, IResponse } from '../types';
 
-const simpleRequest: IRequest = {
+const simpleRequest: CachePolicy.Request = {
     headers: {
         connection: 'close',
         host: 'www.w3c.org',
@@ -10,38 +9,41 @@ const simpleRequest: IRequest = {
     url: '/Protocols/rfc2616/rfc2616-sec14.html',
 };
 
-function withHeaders(request: IRequest, headers: IRequestHeaders): IRequest {
+function withHeaders(
+    request: CachePolicy.Request,
+    headers: CachePolicy.RequestHeaders
+): CachePolicy.Request {
     return { ...request, headers: { ...request.headers, ...headers } };
 }
 
-const cacheableResponse: IResponse = {
+const cacheableResponse: CachePolicy.Response = {
     headers: { 'cache-control': 'max-age=111' },
 };
 
-const etaggedResponse: IResponse = {
+const etaggedResponse: CachePolicy.Response = {
     headers: { etag: '"123456789"', ...cacheableResponse.headers },
 };
 
-const weakTaggedResponse: IResponse = {
+const weakTaggedResponse: CachePolicy.Response = {
     headers: { etag: 'W/"123456789"', ...cacheableResponse.headers },
 };
 
-const lastModifiedResponse: IResponse = {
+const lastModifiedResponse: CachePolicy.Response = {
     headers: {
         'last-modified': 'Tue, 15 Nov 1994 12:45:26 GMT',
         ...cacheableResponse.headers,
     },
 };
 
-const multiValidatorResponse: IResponse = {
+const multiValidatorResponse: CachePolicy.Response = {
     headers: { ...etaggedResponse.headers, ...lastModifiedResponse.headers },
 };
 
 function notModifiedResponseHeaders(
-    firstRequest: IRequest,
-    firstResponse: IResponse,
-    secondRequest: IRequest,
-    secondResponse: IResponse
+    firstRequest: CachePolicy.Request,
+    firstResponse: CachePolicy.Response,
+    secondRequest: CachePolicy.Request,
+    secondResponse: CachePolicy.Response
 ) {
     const cache = new CachePolicy(firstRequest, firstResponse);
     const headers = cache.revalidationHeaders(secondRequest);
@@ -56,10 +58,10 @@ function notModifiedResponseHeaders(
 }
 
 function expectUpdates(
-    firstRequest: IRequest,
-    firstResponse: IResponse,
-    secondRequest: IRequest,
-    secondResponse: IResponse
+    firstRequest: CachePolicy.Request,
+    firstResponse: CachePolicy.Response,
+    secondRequest: CachePolicy.Request,
+    secondResponse: CachePolicy.Response
 ) {
     const headers = notModifiedResponseHeaders(
         firstRequest,
@@ -69,7 +71,7 @@ function expectUpdates(
             foo: 'updated',
             'x-ignore-new': 'ignoreme',
         })
-    ) as Headers;
+    ) as CachePolicy.Headers;
 
     expect(headers).toBeDefined();
     expect(headers).toMatchObject({
@@ -77,7 +79,9 @@ function expectUpdates(
         'x-other': 'original',
     });
     expect(headers).not.toHaveProperty('x-ignore-new');
-    expect(headers.etag).toEqual((secondResponse.headers as Headers).etag);
+    expect(headers.etag).toEqual(
+        (secondResponse.headers as CachePolicy.Headers).etag
+    );
 }
 
 test('Matching etags are updated', () => {

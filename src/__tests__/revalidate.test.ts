@@ -1,7 +1,6 @@
 import CachePolicy = require('..');
-import { Headers, IRequest } from '../types';
 
-const simpleRequest: IRequest = {
+const simpleRequest: CachePolicy.Request = {
     headers: {
         connection: 'close',
         host: 'www.w3c.org',
@@ -10,7 +9,7 @@ const simpleRequest: IRequest = {
     method: 'GET',
     url: '/Protocols/rfc2616/rfc2616-sec14.html',
 };
-function simpleRequestBut(overrides: Partial<IRequest>) {
+function simpleRequestBut(overrides: Partial<CachePolicy.Request>) {
     return { ...simpleRequest, ...overrides };
 }
 
@@ -31,11 +30,11 @@ const alwaysVariableResponse = {
     headers: { vary: '*', ...cacheableResponse.headers },
 };
 
-function expectHeadersPassed(headers: Headers) {
+function expectHeadersPassed(headers: CachePolicy.Headers) {
     expect(headers.connection).toBeUndefined();
     expect(headers['x-custom']).toEqual('yes');
 }
-function expectNoValidators(headers: Headers) {
+function expectNoValidators(headers: CachePolicy.Headers) {
     expect(headers['if-none-match']).toBeUndefined();
     expect(headers['if-modified-since']).toBeUndefined();
 }
@@ -223,7 +222,7 @@ describe('Validation request', () => {
     });
 
     test('should not send the Last-Modified value for POST', () => {
-        const postReq: IRequest = {
+        const postReq: CachePolicy.Request = {
             headers: {
                 'if-modified-since': 'yesterday',
             },
@@ -235,7 +234,7 @@ describe('Validation request', () => {
     });
 
     test('should not send the Last-Modified value for range requests', () => {
-        const rangeReq: IRequest = {
+        const rangeReq: CachePolicy.Request = {
             headers: {
                 'accept-ranges': '1-3',
                 'if-modified-since': 'yesterday',

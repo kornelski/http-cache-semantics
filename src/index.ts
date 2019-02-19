@@ -1,17 +1,3 @@
-import {
-    CacheControl,
-    Headers,
-    HttpMethod,
-    ICachePolicyFields,
-    ICachePolicyObject,
-    IRequest,
-    IRequestCacheControl,
-    IRequestHeaders,
-    IResponse,
-    IResponseCacheControl,
-    IResponseHeaders,
-} from './types';
-
 import cloneDeep = require('lodash.clonedeep');
 
 // rfc7231 6.1
@@ -73,7 +59,7 @@ const excludedFromRevalidationUpdate = new Set([
     'transfer-encoding',
 ]);
 
-function shouldRespectPragma(headers: Headers) {
+function shouldRespectPragma(headers: CachePolicy.Headers) {
     return (
         headers['cache-control'] == null &&
         headers.pragma != null &&
@@ -81,7 +67,7 @@ function shouldRespectPragma(headers: Headers) {
     );
 }
 
-function parseCacheControl(header?: string): CacheControl {
+function parseCacheControl(header?: string): CachePolicy.CacheControl {
     if (!header) {
         return {};
     }
@@ -98,7 +84,7 @@ function parseCacheControl(header?: string): CacheControl {
     return header
         .trim()
         .split(/\s*,\s*/)
-        .reduce<CacheControl>((cacheControl, part) => {
+        .reduce<CachePolicy.CacheControl>((cacheControl, part) => {
             const [k, v] = part.split(/\s*=\s*/, 2);
             return {
                 ...cacheControl,
@@ -108,7 +94,7 @@ function parseCacheControl(header?: string): CacheControl {
         }, {});
 }
 
-function formatCacheControl(cc: IRequestCacheControl | IResponseCacheControl) {
+function formatCacheControl(cc: CachePolicy.CacheControl) {
     const keys = Object.keys(cc);
 
     if (!keys.length) {
@@ -133,20 +119,20 @@ function removeWeakValidatorPrefix(etag: string) {
     return etag.replace(weakValidatorPrefix, '');
 }
 
-function assertRequestHasHeaders(req?: IRequest) {
+function assertRequestHasHeaders(req?: CachePolicy.Request) {
     if (!req || !req.headers) {
         throw Error('Request headers missing');
     }
     return true;
 }
 
-export = class CachePolicy implements ICachePolicyFields {
-    public static fromObject(obj: ICachePolicyObject): CachePolicy {
+class CachePolicy implements CachePolicy.Fields {
+    public static fromObject(obj: CachePolicy.Object): CachePolicy {
         if (!obj || obj.v !== 1) {
             throw Error('Invalid serialization');
         }
 
-        const policy = cloneDeep<ICachePolicyFields>({
+        const policy = cloneDeep<CachePolicy.Fields>({
             _cacheHeuristic: obj.ch,
             _host: obj.h,
             _immutableMinTtl:
@@ -166,25 +152,25 @@ export = class CachePolicy implements ICachePolicyFields {
         return Object.assign(Object.create(CachePolicy.prototype), policy);
     }
 
-    public readonly _cacheHeuristic: number;
-    public readonly _host?: string;
-    public readonly _immutableMinTtl: number;
-    public readonly _isShared: boolean;
-    public readonly _method: HttpMethod;
-    public readonly _noAuthorization: boolean;
-    public readonly _reqHeaders?: IRequestHeaders;
-    public readonly _reqcc: IRequestCacheControl;
-    public readonly _resHeaders: IResponseHeaders;
-    public readonly _rescc: IResponseCacheControl;
-    public readonly _responseTime: number;
-    public readonly _status: number;
-    public readonly _url?: string;
+    public _cacheHeuristic: number;
+    public _host?: string;
+    public _immutableMinTtl: number;
+    public _isShared: boolean;
+    public _method: CachePolicy.HttpMethod;
+    public _noAuthorization: boolean;
+    public _reqHeaders?: CachePolicy.RequestHeaders;
+    public _reqcc: CachePolicy.RequestCacheControl;
+    public _resHeaders: CachePolicy.ResponseHeaders;
+    public _rescc: CachePolicy.ResponseCacheControl;
+    public _responseTime: number;
+    public _status: number;
+    public _url?: string;
 
-    private readonly _trustServerDate: boolean;
+    private _trustServerDate: boolean;
 
     constructor(
-        req: IRequest,
-        res?: IResponse,
+        req: CachePolicy.Request,
+        res?: CachePolicy.Response,
         {
             shared,
             cacheHeuristic,
@@ -206,7 +192,7 @@ export = class CachePolicy implements ICachePolicyFields {
 
         assertRequestHasHeaders(req);
 
-        const reqHeaders = req.headers as IRequestHeaders;
+        const reqHeaders = req.headers as CachePolicy.RequestHeaders;
 
         this._responseTime = Date.now();
         this._isShared = shared !== false;
@@ -322,10 +308,10 @@ export = class CachePolicy implements ICachePolicyFields {
         );
     }
 
-    public satisfiesWithoutRevalidation(req: IRequest) {
+    public satisfiesWithoutRevalidation(req: CachePolicy.Request) {
         assertRequestHasHeaders(req);
 
-        const reqHeaders = req.headers as IRequestHeaders;
+        const reqHeaders = req.headers as CachePolicy.RequestHeaders;
 
         /**
          * When presented with a request, a cache MUST NOT reuse a stored
@@ -337,7 +323,7 @@ export = class CachePolicy implements ICachePolicyFields {
          */
         const requestCC = parseCacheControl(
             reqHeaders['cache-control']
-        ) as IRequestCacheControl;
+        ) as CachePolicy.RequestCacheControl;
 
         if (requestCC['no-cache'] != null || shouldRespectPragma(reqHeaders)) {
             return false;
@@ -523,8 +509,8 @@ export = class CachePolicy implements ICachePolicyFields {
         return this.maxAge() <= this.age();
     }
 
-    public toObject(): ICachePolicyObject {
-        return cloneDeep<ICachePolicyObject>({
+    public toObject(): CachePolicy.Object {
+        return cloneDeep<CachePolicy.Object>({
             a: this._noAuthorization,
             ch: this._cacheHeuristic,
             h: this._host,
@@ -549,10 +535,10 @@ export = class CachePolicy implements ICachePolicyFields {
      * Hop by hop headers are always stripped.
      * Revalidation headers may be added or removed, depending on request.
      */
-    public revalidationHeaders(incomingReq: IRequest) {
+    public revalidationHeaders(incomingReq: CachePolicy.Request) {
         assertRequestHasHeaders(incomingReq);
 
-        const reqHeaders = incomingReq.headers as IRequestHeaders;
+        const reqHeaders = incomingReq.headers as CachePolicy.RequestHeaders;
         const headers = this._copyWithoutHopByHopHeaders(reqHeaders);
 
         // This implementation does not understand range requests
@@ -629,7 +615,10 @@ export = class CachePolicy implements ICachePolicyFields {
      *
      * @return {Object} {policy: CachePolicy, modified: Boolean}
      */
-    public revalidatedPolicy(request: IRequest, response?: IResponse) {
+    public revalidatedPolicy(
+        request: CachePolicy.Request,
+        response?: CachePolicy.Response
+    ) {
         assertRequestHasHeaders(request);
         if (!response || !response.headers) {
             throw Error('Response headers missing');
@@ -709,7 +698,7 @@ export = class CachePolicy implements ICachePolicyFields {
          * to replace all instances of the corresponding header fields in the
          * stored response.
          */
-        const headers: IResponseHeaders = {};
+        const headers: CachePolicy.ResponseHeaders = {};
         for (const k of Object.keys(this._resHeaders)) {
             headers[k] =
                 response.headers[k] != null &&
@@ -746,8 +735,11 @@ export = class CachePolicy implements ICachePolicyFields {
         );
     }
 
-    private _requestMatches(req: IRequest, allowHeadMethod: boolean) {
-        const reqHeaders = req.headers as IRequestHeaders;
+    private _requestMatches(
+        req: CachePolicy.Request,
+        allowHeadMethod: boolean
+    ) {
+        const reqHeaders = req.headers as CachePolicy.RequestHeaders;
         // The presented effective request URI and that of the stored response
         // match, and
         return (
@@ -776,7 +768,7 @@ export = class CachePolicy implements ICachePolicyFields {
         );
     }
 
-    private _varyMatches(req: IRequest) {
+    private _varyMatches(req: CachePolicy.Request) {
         assertRequestHasHeaders(req);
 
         if (!this._resHeaders.vary || this._reqHeaders == null) {
@@ -793,7 +785,7 @@ export = class CachePolicy implements ICachePolicyFields {
             .toLowerCase()
             .split(/\s*,\s*/);
 
-        const reqHeaders = req.headers as IRequestHeaders;
+        const reqHeaders = req.headers as CachePolicy.RequestHeaders;
 
         for (const name of fields) {
             if (reqHeaders[name] !== this._reqHeaders[name]) {
@@ -804,8 +796,8 @@ export = class CachePolicy implements ICachePolicyFields {
         return true;
     }
 
-    private _copyWithoutHopByHopHeaders(inHeaders: Headers) {
-        const headers: Headers = {};
+    private _copyWithoutHopByHopHeaders(inHeaders: CachePolicy.Headers) {
+        const headers: CachePolicy.Headers = {};
 
         for (const name of Object.keys(inHeaders)) {
             if (hopByHopHeaders.has(name)) {
@@ -849,4 +841,114 @@ export = class CachePolicy implements ICachePolicyFields {
         }
         return this._responseTime;
     }
-};
+}
+
+namespace CachePolicy {
+    export interface Fields {
+        _cacheHeuristic: number;
+        _host?: string;
+        _immutableMinTtl: number;
+        _isShared: boolean;
+        _method: string;
+        _noAuthorization: boolean;
+        _reqHeaders?: RequestHeaders;
+        _reqcc: RequestCacheControl;
+        _resHeaders: ResponseHeaders;
+        _rescc: ResponseCacheControl;
+        _responseTime: number;
+        _status: number;
+        _url?: string;
+    }
+
+    interface HeadersBase {
+        [index: string]: string | undefined;
+        'cache-control'?: string;
+        pragma?: string;
+    }
+
+    export interface RequestHeaders extends HeadersBase {
+        authorization?: string;
+        host?: string;
+    }
+
+    export interface ResponseHeaders extends HeadersBase {
+        'last-modified'?: string;
+        age?: string;
+        etag?: string;
+        vary?: string;
+        expires?: string;
+        'set-cookie'?: string;
+    }
+
+    export type Headers = RequestHeaders | ResponseHeaders;
+
+    interface CacheControlBase {
+        [index: string]: string | true | undefined;
+        'max-age'?: string;
+        'no-cache'?: true;
+        'no-store'?: true;
+    }
+
+    export interface RequestCacheControl extends CacheControlBase {
+        'max-stale'?: true | string;
+        'min-fresh'?: string;
+        'no-transform'?: true;
+        'only-if-cached'?: true;
+    }
+
+    export interface ResponseCacheControl extends CacheControlBase {
+        'must-revalidate'?: true;
+        'no-transform'?: true;
+        'proxy-revalidate'?: true;
+        's-maxage'?: string;
+        private?: true;
+        public?: true;
+        'pre-check'?: string;
+        'post-check'?: string;
+        immutable?: true;
+    }
+
+    export type CacheControl = RequestCacheControl | ResponseCacheControl;
+
+    export type HttpMethod =
+        | 'GET'
+        | 'HEAD'
+        | 'POST'
+        | 'PUT'
+        | 'DELETE'
+        | 'CONNECT'
+        | 'OPTIONS'
+        | 'TRACE'
+        | 'PATCH';
+
+    export interface Request {
+        method?: HttpMethod;
+        headers?: RequestHeaders;
+        url?: string;
+    }
+
+    export interface Response {
+        headers?: ResponseHeaders;
+        status?: number;
+        body?: any;
+    }
+
+    export interface Object {
+        ch: number;
+        h?: string;
+        imm?: number;
+        sh: boolean;
+        m: HttpMethod;
+        a: boolean;
+        reqh?: RequestHeaders;
+        reqcc: RequestCacheControl;
+        resh: ResponseHeaders;
+        rescc: ResponseCacheControl;
+        t: number;
+        st: number;
+        u?: string;
+        v: 1;
+    }
+}
+
+export = CachePolicy;
