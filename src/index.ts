@@ -181,7 +181,6 @@ class CachePolicy implements CachePolicy.Fields {
             shared?: boolean;
             cacheHeuristic?: number;
             immutableMinTimeToLive?: number;
-            status?: number;
             ignoreCargoCult?: boolean;
             trustServerDate?: boolean;
         } = {}
