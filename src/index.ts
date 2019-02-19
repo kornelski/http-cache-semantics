@@ -152,21 +152,21 @@ class CachePolicy implements CachePolicy.Fields {
         return Object.assign(Object.create(CachePolicy.prototype), policy);
     }
 
-    public _cacheHeuristic: number;
-    public _host?: string;
-    public _immutableMinTtl: number;
-    public _isShared: boolean;
-    public _method: CachePolicy.HttpMethod;
-    public _noAuthorization: boolean;
-    public _reqHeaders?: CachePolicy.RequestHeaders;
-    public _reqcc: CachePolicy.RequestCacheControl;
-    public _resHeaders: CachePolicy.ResponseHeaders;
-    public _rescc: CachePolicy.ResponseCacheControl;
-    public _responseTime: number;
-    public _status: number;
-    public _url?: string;
+    public readonly _cacheHeuristic: number;
+    public readonly _host?: string;
+    public readonly _immutableMinTtl: number;
+    public readonly _isShared: boolean;
+    public readonly _method: CachePolicy.HttpMethod;
+    public readonly _noAuthorization: boolean;
+    public readonly _reqHeaders?: CachePolicy.RequestHeaders;
+    public readonly _reqcc: CachePolicy.RequestCacheControl;
+    public readonly _resHeaders: CachePolicy.ResponseHeaders;
+    public readonly _rescc: CachePolicy.ResponseCacheControl;
+    public readonly _responseTime: number;
+    public readonly _status: number;
+    public readonly _url?: string;
 
-    private _trustServerDate: boolean;
+    private readonly _trustServerDate: boolean;
 
     constructor(
         req: CachePolicy.Request,
