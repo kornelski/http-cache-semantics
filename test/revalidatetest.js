@@ -96,7 +96,7 @@ describe('Can be revalidated?', function() {
         assert.equal(headers['if-none-match'], '"123456789"');
     });
 
-    it('skips weak validtors on post', function() {
+    it('skips weak validators on post', function() {
         const postReq = simpleRequestBut({
             method: 'POST',
             headers: { 'if-none-match': 'W/"weak", "strong", W/"weak2"' },
@@ -107,7 +107,7 @@ describe('Can be revalidated?', function() {
         assert.strictEqual(undefined, headers['if-modified-since']);
     });
 
-    it('skips weak validtors on post 2', function() {
+    it('skips weak validators on post 2', function() {
         const postReq = simpleRequestBut({
             method: 'POST',
             headers: { 'if-none-match': 'W/"weak"' },
@@ -118,7 +118,7 @@ describe('Can be revalidated?', function() {
         assert.strictEqual(undefined, headers['if-modified-since']);
     });
 
-    it('merges validtors', function() {
+    it('merges validators', function() {
         const postReq = simpleRequestBut({
             headers: { 'if-none-match': 'W/"weak", "strong", W/"weak2"' },
         });
