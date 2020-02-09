@@ -180,9 +180,9 @@ module.exports = class CachePolicy {
                 // contains a max-age response directive, or
                 // contains a s-maxage response directive and the cache is shared, or
                 // contains a public response directive.
-                this._rescc.public ||
                 this._rescc['max-age'] ||
-                this._rescc['s-maxage'] ||
+                (this._isShared && this._rescc['s-maxage']) ||
+                this._rescc.public ||
                 // has a status code that is defined as cacheable by default
                 statusCodeCacheableByDefault.indexOf(this._status) !== -1)
         );
