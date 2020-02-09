@@ -283,9 +283,10 @@ describe('Response headers', function() {
             headers: {
                 'cache-control': '',
                 pragma: 'no-cache',
-                'last-modified': new Date().toGMTString(),
+                'last-modified': new Date(Date.now() - 10000).toGMTString(),
             },
         });
+        assert(cache.maxAge() > 0);
         assert(!cache.stale());
     });
 
