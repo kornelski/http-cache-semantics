@@ -87,7 +87,6 @@ module.exports = class CachePolicy {
             cacheHeuristic,
             immutableMinTimeToLive,
             ignoreCargoCult,
-            trustServerDate,
             _fromObject,
         } = {}
     ) {
@@ -103,8 +102,6 @@ module.exports = class CachePolicy {
 
         this._responseTime = this.now();
         this._isShared = shared !== false;
-        this._trustServerDate =
-            undefined !== trustServerDate ? trustServerDate : true;
         this._cacheHeuristic =
             undefined !== cacheHeuristic ? cacheHeuristic : 0.1; // 10% matches IE
         this._immutableMinTtl =
@@ -331,24 +328,13 @@ module.exports = class CachePolicy {
     }
 
     /**
-     * Value of the Date response header or current time if Date was demed invalid
+     * Value of the Date response header or current time if Date was invalid
      * @return timestamp
      */
     date() {
-        if (this._trustServerDate) {
-            return this._serverDate();
-        }
-        return this._responseTime;
-    }
-
-    _serverDate() {
         const serverDate = Date.parse(this._resHeaders.date);
         if (isFinite(serverDate)) {
-            const maxClockDrift = 8 * 3600 * 1000;
-            const clockDrift = Math.abs(this._responseTime - serverDate);
-            if (clockDrift < maxClockDrift) {
-                return serverDate;
-            }
+            return serverDate;
         }
         return this._responseTime;
     }
@@ -360,11 +346,7 @@ module.exports = class CachePolicy {
      * @return Number
      */
     age() {
-        let age = Math.max(0, (this._responseTime - this.date()) / 1000);
-        if (this._resHeaders.age) {
-            let ageValue = this._ageValue();
-            if (ageValue > age) age = ageValue;
-        }
+        let age = this._ageValue();
 
         const residentTime = (this.now() - this._responseTime) / 1000;
         return age + residentTime;
@@ -419,7 +401,7 @@ module.exports = class CachePolicy {
 
         const defaultMinTtl = this._rescc.immutable ? this._immutableMinTtl : 0;
 
-        const serverDate = this._serverDate();
+        const serverDate = this.date();
         if (this._resHeaders.expires) {
             const expires = Date.parse(this._resHeaders.expires);
             // A cache recipient MUST interpret invalid date formats, especially the value "0", as representing a time in the past (i.e., "already expired").
@@ -644,7 +626,6 @@ module.exports = class CachePolicy {
                 shared: this._isShared,
                 cacheHeuristic: this._cacheHeuristic,
                 immutableMinTimeToLive: this._immutableMinTtl,
-                trustServerDate: this._trustServerDate,
             }),
             modified: false,
             matches: true,

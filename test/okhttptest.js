@@ -157,7 +157,7 @@ describe('okhttp tests', function() {
             { shared: false }
         );
 
-        assert(cache.stale());
+        assert(!cache.stale());
     });
 
     it('max age preferred over lower shared max age', function() {
@@ -180,7 +180,7 @@ describe('okhttp tests', function() {
             { headers: {} },
             {
                 headers: {
-                    date: formatDate(-3, 60),
+                    age: 360,
                     'cache-control': 's-maxage=60, max-age=180',
                 },
             },
@@ -262,7 +262,7 @@ describe('okhttp tests', function() {
             {
                 headers: {
                     'last-modified': formatDate(-2, 3600),
-                    date: formatDate(-1, 60),
+                    age: 60,
                     expires: formatDate(1, 3600),
                 },
             },
@@ -325,7 +325,7 @@ describe('okhttp tests', function() {
             {
                 headers: {
                     'cache-control': 'max-age=120',
-                    date: formatDate(-4, 60),
+                    age: 4*60,
                 },
             },
             { shared: false }
@@ -364,7 +364,7 @@ describe('okhttp tests', function() {
             {
                 headers: {
                     'cache-control': 'max-age=120, must-revalidate',
-                    date: formatDate(-4, 60),
+                    age: 360,
                 },
             },
             { shared: false }
