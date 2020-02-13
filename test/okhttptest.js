@@ -19,7 +19,7 @@ const assert = require('assert');
 const CachePolicy = require('..');
 
 describe('okhttp tests', function() {
-    it('responseCachingByResponseCode', function() {
+    it('response caching by response code', function() {
         // Test each documented HTTP/1.1 code, plus the first unused value in each range.
         // http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
 
@@ -102,7 +102,7 @@ describe('okhttp tests', function() {
         assert.equal(shouldPut, cache.storable());
     }
 
-    it('defaultExpirationDateFullyCachedForLessThan24Hours', function() {
+    it('default expiration date fully cached for less than24 hours', function() {
         //      last modified: 105 seconds ago
         //             served:   5 seconds ago
         //   default lifetime: (105 - 5) / 10 = 10 seconds
@@ -122,7 +122,7 @@ describe('okhttp tests', function() {
         assert(cache.timeToLive() > 4000);
     });
 
-    it('defaultExpirationDateFullyCachedForMoreThan24Hours', function() {
+    it('default expiration date fully cached for more than24 hours', function() {
         //      last modified: 105 days ago
         //             served:   5 days ago
         //   default lifetime: (105 - 5) / 10 = 10 days
@@ -143,7 +143,7 @@ describe('okhttp tests', function() {
         assert(cache.timeToLive() + 1000 >= 5 * 3600 * 24);
     });
 
-    it('maxAgeInThePastWithDateHeaderButNoLastModifiedHeader', function() {
+    it('max age in the past with date header but no last modified header', function() {
         // Chrome interprets max-age relative to the local clock. Both our cache
         // and Firefox both use the earlier of the local and server's clock.
         const cache = new CachePolicy(
@@ -160,7 +160,7 @@ describe('okhttp tests', function() {
         assert(cache.stale());
     });
 
-    it('maxAgePreferredOverLowerSharedMaxAge', function() {
+    it('max age preferred over lower shared max age', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -175,7 +175,7 @@ describe('okhttp tests', function() {
         assert.equal(cache.maxAge(), 180);
     });
 
-    it('maxAgePreferredOverHigherMaxAge', function() {
+    it('max age preferred over higher max age', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -190,19 +190,19 @@ describe('okhttp tests', function() {
         assert(cache.stale());
     });
 
-    it('requestMethodOptionsIsNotCached', function() {
+    it('request method options is not cached', function() {
         testRequestMethodNotCached('OPTIONS');
     });
 
-    it('requestMethodPutIsNotCached', function() {
+    it('request method put is not cached', function() {
         testRequestMethodNotCached('PUT');
     });
 
-    it('requestMethodDeleteIsNotCached', function() {
+    it('request method delete is not cached', function() {
         testRequestMethodNotCached('DELETE');
     });
 
-    it('requestMethodTraceIsNotCached', function() {
+    it('request method trace is not cached', function() {
         testRequestMethodNotCached('TRACE');
     });
 
@@ -222,7 +222,7 @@ describe('okhttp tests', function() {
         assert(cache.stale());
     }
 
-    it('etagAndExpirationDateInTheFuture', function() {
+    it('etag and expiration date in the future', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -238,7 +238,7 @@ describe('okhttp tests', function() {
         assert(cache.timeToLive() > 0);
     });
 
-    it('clientSideNoStore', function() {
+    it('client side no store', function() {
         const cache = new CachePolicy(
             {
                 headers: {
@@ -256,7 +256,7 @@ describe('okhttp tests', function() {
         assert(!cache.storable());
     });
 
-    it('requestMaxAge', function() {
+    it('request max age', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -289,7 +289,7 @@ describe('okhttp tests', function() {
         );
     });
 
-    it('requestMinFresh', function() {
+    it('request min fresh', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -319,7 +319,7 @@ describe('okhttp tests', function() {
         );
     });
 
-    it('requestMaxStale', function() {
+    it('request max stale', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -358,7 +358,7 @@ describe('okhttp tests', function() {
         );
     });
 
-    it('requestMaxStaleNotHonoredWithMustRevalidate', function() {
+    it('request max stale not honored with must revalidate', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -389,7 +389,7 @@ describe('okhttp tests', function() {
         );
     });
 
-    it('getHeadersDeletesCached100LevelWarnings', function() {
+    it('get headers deletes cached100 level warnings', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -402,7 +402,7 @@ describe('okhttp tests', function() {
         assert.equal('200 ok ok', cache.responseHeaders().warning);
     });
 
-    it('doNotCachePartialResponse', function() {
+    it('do not cache partial response', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
