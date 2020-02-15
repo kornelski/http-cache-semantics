@@ -250,4 +250,28 @@ describe('Update revalidated', function() {
             'bad lastmod'
         );
     });
+
+    it("staleIfError revalidate, no response", function() {
+        const cacheableStaleResponse = { headers: { 'cache-control': 'max-age=200, stale-if-error=300' } };
+        const cache = new CachePolicy(simpleRequest, cacheableStaleResponse);
+
+        const { policy, modified } = cache.revalidatedPolicy(
+            simpleRequest,
+            null
+        );
+        assert(policy === cache);
+        assert(modified === false);
+    });
+
+    it("staleIfError revalidate, server error", function() {
+        const cacheableStaleResponse = { headers: { 'cache-control': 'max-age=200, stale-if-error=300' } };
+        const cache = new CachePolicy(simpleRequest, cacheableStaleResponse);
+
+        const { policy, modified } = cache.revalidatedPolicy(
+            simpleRequest,
+            { status: 500 }
+        );
+        assert(policy === cache);
+        assert(modified === false);
+    });
 });

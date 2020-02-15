@@ -1,6 +1,6 @@
 'use strict';
 // rfc7231 6.1
-const statusCodeCacheableByDefault = [
+const statusCodeCacheableByDefault = new Set([
     200,
     203,
     204,
@@ -12,10 +12,10 @@ const statusCodeCacheableByDefault = [
     410,
     414,
     501,
-];
+]);
 
 // This implementation does not understand partial responses (206)
-const understoodStatuses = [
+const understoodStatuses = new Set([
     200,
     203,
     204,
@@ -30,7 +30,14 @@ const understoodStatuses = [
     410,
     414,
     501,
-];
+]);
+
+const errorStatusCodes = new Set([
+    500,
+    502,
+    503, 
+    504,
+]);
 
 const hopByHopHeaders = {
     date: true, // included, because we add Age update Date
@@ -43,6 +50,7 @@ const hopByHopHeaders = {
     'transfer-encoding': true,
     upgrade: true,
 };
+
 const excludedFromRevalidationUpdate = {
     // Since the old body is reused, it doesn't make sense to change properties of the body
     'content-length': true,
@@ -50,6 +58,20 @@ const excludedFromRevalidationUpdate = {
     'transfer-encoding': true,
     'content-range': true,
 };
+
+function toNumberOrZero(s) {
+    const n = parseInt(s, 10);
+    return isFinite(n) ? n : 0;
+}
+
+// RFC 5861
+function isErrorResponse(response) {
+    // consider undefined response as faulty
+    if(!response) {
+        return true
+    }
+    return errorStatusCodes.has(response.status);
+}
 
 function parseCacheControl(header) {
     const cc = {};
@@ -165,7 +187,7 @@ module.exports = class CachePolicy {
                 'HEAD' === this._method ||
                 ('POST' === this._method && this._hasExplicitExpiration())) &&
             // the response status code is understood by the cache, and
-            understoodStatuses.indexOf(this._status) !== -1 &&
+            understoodStatuses.has(this._status) &&
             // the "no-store" cache directive does not appear in request or response header fields, and
             !this._rescc['no-store'] &&
             // the "private" response directive does not appear in the response, if the cache is shared, and
@@ -184,7 +206,7 @@ module.exports = class CachePolicy {
                 this._rescc['max-age'] ||
                 this._rescc['s-maxage'] ||
                 // has a status code that is defined as cacheable by default
-                statusCodeCacheableByDefault.indexOf(this._status) !== -1)
+                statusCodeCacheableByDefault.has(this._status))
         );
     }
 
@@ -371,8 +393,7 @@ module.exports = class CachePolicy {
     }
 
     _ageValue() {
-        const ageValue = parseInt(this._resHeaders.age);
-        return isFinite(ageValue) ? ageValue : 0;
+        return toNumberOrZero(this._resHeaders.age);
     }
 
     /**
@@ -408,13 +429,13 @@ module.exports = class CachePolicy {
             }
             // if a response includes the s-maxage directive, a shared cache recipient MUST ignore the Expires field.
             if (this._rescc['s-maxage']) {
-                return parseInt(this._rescc['s-maxage'], 10);
+                return toNumberOrZero(this._rescc['s-maxage']);
             }
         }
 
         // If a response includes a Cache-Control field with the max-age directive, a recipient MUST ignore the Expires field.
         if (this._rescc['max-age']) {
-            return parseInt(this._rescc['max-age'], 10);
+            return toNumberOrZero(this._rescc['max-age']);
         }
 
         const defaultMinTtl = this._rescc.immutable ? this._immutableMinTtl : 0;
@@ -443,11 +464,23 @@ module.exports = class CachePolicy {
     }
 
     timeToLive() {
-        return Math.max(0, this.maxAge() - this.age()) * 1000;
+        return Math.max(
+            0,
+            this.maxAge() - this.age(),
+            this.maxAge() + toNumberOrZero(this._rescc['stale-if-error']) - this.age(),
+            this.maxAge() + toNumberOrZero(this._rescc['stale-while-revalidate']) - this.age()) * 1000;
     }
 
     stale() {
         return this.maxAge() <= this.age();
+    }
+
+    useStaleIfError() {
+        return this.maxAge() + toNumberOrZero(this._rescc['stale-if-error']) > this.age();
+    }
+
+    useStaleWhileRevalidate() {
+        return this.maxAge() + toNumberOrZero(this._rescc['stale-while-revalidate']) > this.age();
     }
 
     static fromObject(obj) {
@@ -567,6 +600,13 @@ module.exports = class CachePolicy {
      */
     revalidatedPolicy(request, response) {
         this._assertRequestHasHeaders(request);
+        if(this.useStaleIfError() && isErrorResponse(response)) {  // I consider the revalidation request unsuccessful
+          return {
+            modified: false,
+            matches: false,
+            policy: this,
+          };
+        }
         if (!response || !response.headers) {
             throw Error('Response headers missing');
         }

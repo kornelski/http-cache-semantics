@@ -1,6 +1,8 @@
 # Can I cache this? [![Build Status](https://travis-ci.org/kornelski/http-cache-semantics.svg?branch=master)](https://travis-ci.org/kornelski/http-cache-semantics)
 
-`CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
+`CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. 
+It also implements [RFC 5861](https://tools.ietf.org/html/rfc5861), implementing `stale-if-error` and `stale-while-revalidate`.
+It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
 
 ## Usage
 
@@ -104,6 +106,7 @@ cachedResponse.headers = cachePolicy.responseHeaders(cachedResponse);
 Returns approximate time in _milliseconds_ until the response becomes stale (i.e. not fresh).
 
 After that time (when `timeToLive() <= 0`) the response might not be usable without revalidation. However, there are exceptions, e.g. a client can explicitly allow stale responses, so always check with `satisfiesWithoutRevalidation()`.
+`stale-if-error` and `stale-while-revalidate` extend the time to live of the cache, that can still be used if stale.
 
 ### `toObject()`/`fromObject(json)`
 
@@ -131,7 +134,7 @@ Use this method to update the cache after receiving a new response from the orig
 
 -   `policy` — A new `CachePolicy` with HTTP headers updated from `revalidationResponse`. You can always replace the old cached `CachePolicy` with the new one.
 -   `modified` — Boolean indicating whether the response body has changed.
-    -   If `false`, then a valid 304 Not Modified response has been received, and you can reuse the old cached response body.
+    -   If `false`, then a valid 304 Not Modified response has been received, and you can reuse the old cached response body. This is also affected by `stale-if-error`.
     -   If `true`, you should use new response's body (if present), or make another request to the origin server without any conditional headers (i.e. don't use `revalidationHeaders()` this time) to get the new resource.
 
 ```js
