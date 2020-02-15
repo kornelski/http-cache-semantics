@@ -65,14 +65,23 @@ function assertUpdates(
     secondRequest,
     secondResponse
 ) {
+    firstResponse = withHeaders(firstResponse, { foo: 'original', 'x-other': 'original' });
+    if (!firstResponse.status) {
+        firstResponse.status = 200;
+    }
+    secondResponse = withHeaders(secondResponse, {
+        foo: 'updated',
+        'x-ignore-new': 'ignoreme',
+    });
+    if (!secondResponse.status) {
+        secondResponse.status = 304;
+    }
+
     const headers = notModifiedResponseHeaders(
         firstRequest,
-        withHeaders(firstResponse, { foo: 'original', 'x-other': 'original' }),
+        firstResponse,
         secondRequest,
-        withHeaders(secondResponse, {
-            foo: 'updated',
-            'x-ignore-new': 'ignoreme',
-        })
+        secondResponse
     );
     assert(headers);
     assert.equal(headers['foo'], 'updated');
