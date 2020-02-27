@@ -446,18 +446,17 @@ module.exports = class CachePolicy {
     }
 
     timeToLive() {
-        return Math.max(
-            0,
-            this.maxAge() - this.age(),
-            this.maxAge() + toNumberOrZero(this._rescc['stale-if-error']) - this.age(),
-            this.maxAge() + toNumberOrZero(this._rescc['stale-while-revalidate']) - this.age()) * 1000;
+        const age = this.maxAge() - this.age();
+        const staleIfErrorAge = age + toNumberOrZero(this._rescc['stale-if-error']);
+        const staleWhileRevalidateAge = age + toNumberOrZero(this._rescc['stale-while-revalidate']);
+        return Math.max(0, age, staleIfErrorAge, staleWhileRevalidateAge) * 1000;
     }
 
     stale() {
         return this.maxAge() <= this.age();
     }
 
-    useStaleIfError() {
+    _useStaleIfError() {
         return this.maxAge() + toNumberOrZero(this._rescc['stale-if-error']) > this.age();
     }
 
@@ -582,7 +581,7 @@ module.exports = class CachePolicy {
      */
     revalidatedPolicy(request, response) {
         this._assertRequestHasHeaders(request);
-        if(this.useStaleIfError() && isErrorResponse(response)) {  // I consider the revalidation request unsuccessful
+        if(this._useStaleIfError() && isErrorResponse(response)) {  // I consider the revalidation request unsuccessful
           return {
             modified: false,
             matches: false,
