@@ -18,6 +18,9 @@
 const assert = require('assert');
 const CachePolicy = require('..');
 
+const now = Date.now();
+const _nowFunc = () => now;
+
 describe('okhttp tests', function() {
     it('response caching by response code', function() {
         // Test each documented HTTP/1.1 code, plus the first unused value in each range.
@@ -97,7 +100,7 @@ describe('okhttp tests', function() {
 
         const request = { url: '/', headers: {} };
 
-        const cache = new CachePolicy(request, mockResponse, { shared: false });
+        const cache = new CachePolicy(request, mockResponse, { shared: false, _nowFunc });
 
         assert.equal(shouldPut, cache.storable());
     }
@@ -116,7 +119,7 @@ describe('okhttp tests', function() {
                 },
                 body: 'A',
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(cache.timeToLive() > 4000);
@@ -136,7 +139,7 @@ describe('okhttp tests', function() {
                 },
                 body: 'A',
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(cache.maxAge() >= 10 * 3600 * 24);
@@ -154,7 +157,7 @@ describe('okhttp tests', function() {
                     'cache-control': 'max-age=60',
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(!cache.stale());
@@ -169,7 +172,7 @@ describe('okhttp tests', function() {
                     'cache-control': 'max-age=60',
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(!cache.stale());
@@ -185,7 +188,7 @@ describe('okhttp tests', function() {
                     'cache-control': 'max-age=60, stale-if-error=200',
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(!cache.stale());
@@ -201,7 +204,7 @@ describe('okhttp tests', function() {
                     'cache-control': 'max-age=60, stale-while-revalidate=200',
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(!cache.stale());
@@ -217,7 +220,7 @@ describe('okhttp tests', function() {
                     'cache-control': 's-maxage=60, max-age=180',
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert.equal(cache.maxAge(), 180);
@@ -232,7 +235,7 @@ describe('okhttp tests', function() {
                     'cache-control': 's-maxage=60, max-age=180',
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(cache.stale());
@@ -264,7 +267,7 @@ describe('okhttp tests', function() {
                     expires: formatDate(1, 3600),
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(cache.stale());
@@ -280,7 +283,7 @@ describe('okhttp tests', function() {
                     expires: formatDate(1, 3600),
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(cache.timeToLive() > 0);
@@ -298,7 +301,7 @@ describe('okhttp tests', function() {
                     'cache-control': 'max-age=60',
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(!cache.storable());
@@ -314,7 +317,7 @@ describe('okhttp tests', function() {
                     expires: formatDate(1, 3600),
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(!cache.stale());
@@ -345,7 +348,7 @@ describe('okhttp tests', function() {
                     'cache-control': 'max-age=60',
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(!cache.stale());
@@ -376,7 +379,7 @@ describe('okhttp tests', function() {
                     age: 4*60,
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(cache.stale());
@@ -415,7 +418,7 @@ describe('okhttp tests', function() {
                     age: 360,
                 },
             },
-            { shared: false }
+            { shared: false, _nowFunc }
         );
 
         assert(cache.stale());
@@ -444,7 +447,8 @@ describe('okhttp tests', function() {
                 headers: {
                     warning: '199 test danger, 200 ok ok',
                 },
-            }
+            }, 
+            { _nowFunc }
         );
 
         assert.equal('200 ok ok', cache.responseHeaders().warning);
@@ -459,7 +463,8 @@ describe('okhttp tests', function() {
                     'content-range': 'bytes 100-100/200',
                     'cache-control': 'max-age=60',
                 },
-            }
+            },
+            { _nowFunc }
         );
         assert(!cache.storable());
     });

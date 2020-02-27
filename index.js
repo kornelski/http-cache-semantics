@@ -110,6 +110,7 @@ module.exports = class CachePolicy {
             immutableMinTimeToLive,
             ignoreCargoCult,
             _fromObject,
+            _nowFunc,
         } = {}
     ) {
         if (_fromObject) {
@@ -121,7 +122,7 @@ module.exports = class CachePolicy {
             throw Error('Response headers missing');
         }
         this._assertRequestHasHeaders(req);
-
+        this._nowFunc = _nowFunc;
         this._responseTime = this.now();
         this._isShared = shared !== false;
         this._cacheHeuristic =
@@ -171,6 +172,9 @@ module.exports = class CachePolicy {
     }
 
     now() {
+        if (this._nowFunc) {
+            return this._nowFunc()
+        }
         return Date.now();
     }
 
