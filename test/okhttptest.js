@@ -171,6 +171,8 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        const now = Date.now();
+        cache.now = () => now
 
         assert(!cache.stale());
         assert.equal(cache.timeToLive(), 60000);
