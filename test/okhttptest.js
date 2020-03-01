@@ -160,6 +160,56 @@ describe('okhttp tests', function() {
         assert(!cache.stale());
     });
 
+    it('maxAge timetolive', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    date: formatDate(120, 1),
+                    'cache-control': 'max-age=60',
+                },
+            },
+            { shared: false }
+        );
+        const now = Date.now();
+        cache.now = () => now
+
+        assert(!cache.stale());
+        assert.equal(cache.timeToLive(), 60000);
+    });
+
+    it('stale-if-error timetolive', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    date: formatDate(120, 1),
+                    'cache-control': 'max-age=60, stale-if-error=200',
+                },
+            },
+            { shared: false }
+        );
+
+        assert(!cache.stale());
+        assert.equal(cache.timeToLive(), 260000);
+    });
+
+    it('stale-while-revalidate timetolive', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    date: formatDate(120, 1),
+                    'cache-control': 'max-age=60, stale-while-revalidate=200',
+                },
+            },
+            { shared: false }
+        );
+
+        assert(!cache.stale());
+        assert.equal(cache.timeToLive(), 260000);
+    });
+
     it('max age preferred over lower shared max age', function() {
         const cache = new CachePolicy(
             { headers: {} },
