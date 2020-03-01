@@ -1,6 +1,6 @@
 # Can I cache this? [![Build Status](https://travis-ci.org/kornelski/http-cache-semantics.svg?branch=master)](https://travis-ci.org/kornelski/http-cache-semantics)
 
-`CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches. 
+`CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches.
 It also implements [RFC 5861](https://tools.ietf.org/html/rfc5861), implementing `stale-if-error` and `stale-while-revalidate`.
 It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
 
@@ -67,7 +67,6 @@ const options = {
     cacheHeuristic: 0.1,
     immutableMinTimeToLive: 24 * 3600 * 1000, // 24h
     ignoreCargoCult: false,
-    trustServerDate: true,
 };
 ```
 
@@ -78,8 +77,6 @@ If `options.shared` is `true` (default), then the response is evaluated from a p
 `options.immutableMinTimeToLive` is a number of milliseconds to assume as the default time to cache responses with `Cache-Control: immutable`. Note that [per RFC](http://httpwg.org/http-extensions/immutable.html) these can become stale, so `max-age` still overrides the default.
 
 If `options.ignoreCargoCult` is true, common anti-cache directives will be completely ignored if the non-standard `pre-check` and `post-check` directives are present. These two useless directives are most commonly found in bad StackOverflow answers and PHP's "session limiter" defaults.
-
-If `options.trustServerDate` is false, then server's `Date` header won't be used as the base for `max-age`. This is against the RFC, but it's useful if you want to cache responses with very short `max-age`, but your local clock is not exactly in sync with the server's.
 
 ### `storable()`
 
@@ -189,8 +186,18 @@ if (!oldPolicy.satisfiesWithoutRevalidation(newRequest)) {
 -   Requests for stale data.
 -   Filtering of hop-by-hop headers.
 -   Basic revalidation request
+-   `stale-if-error`
 
 ## Unimplemented
 
--   Merging of range requests, If-Range (but correctly supports them as non-cacheable)
+-   Merging of range requests, `If-Range` (but correctly supports them as non-cacheable)
 -   Revalidation of multiple representations
+
+### Trusting server `Date`
+
+Per the RFC, the cache should take into account the time between server-supplied `Date` and the time it received the response. The RFC-mandated behavior creates two problems:
+
+ * Servers with incorrectly set timezone may add several hours to cache age (or more, if the clock is completely wrong).
+ * Even reasonably correct clocks may be off by a couple of seconds, breaking `max-age=1` trick (which is useful for reverse proxies on high-traffic servers).
+
+Previous versions of this library had an option to ignore the server date if it was "too inaccurate". To support the `max-age=1` trick the library also has to ignore dates that pretty accurate. There's no point of having an option to trust dates that are only a bit inaccurate, so this library won't trust any server dates. `max-age` will be interpreted from the time the response has been received, not from when it has been sent. This will affect only [RFC 1149 networks](https://tools.ietf.org/html/rfc1149).
