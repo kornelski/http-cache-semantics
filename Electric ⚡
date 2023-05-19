@@ -1,0 +1,1 @@
+npm install --save-dev @electron-forge/plugin-vite
