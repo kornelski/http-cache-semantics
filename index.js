@@ -36,7 +36,7 @@ const understoodStatuses = new Set([
 const errorStatusCodes = new Set([
     500,
     502,
-    503, 
+    503,
     504,
 ]);
 
@@ -248,11 +248,17 @@ module.exports = class CachePolicy {
         // the stored response is either:
         // fresh, or allowed to be served stale
         if (this.stale()) {
-            const allowsStale =
-                requestCC['max-stale'] &&
-                !this._rescc['must-revalidate'] &&
-                (true === requestCC['max-stale'] ||
-                    requestCC['max-stale'] > this.age() - this.maxAge());
+            let allowsStale = false;
+            if (requestCC['max-stale'] && !this._rescc['must-revalidate']) {
+                if (requestCC['max-stale'] === true || requestCC['max-stale'] > this.age() - this.maxAge()) {
+                    allowsStale = true;
+                }
+            // Allow stale-while-revalidate queries to be served stale
+            // even if must-revalidate is set as the revalidation should be happening in the background
+            } else if (this.useStaleWhileRevalidate()) {
+                allowsStale = true;
+            }
+
             if (!allowsStale) {
                 return false;
             }
