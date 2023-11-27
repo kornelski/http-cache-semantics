@@ -210,6 +210,81 @@ describe('okhttp tests', function() {
         assert.equal(cache.timeToLive(), 260000);
     });
 
+    it('stale-while-revalidate satisfies when stale', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 120,
+                    'cache-control': 'max-age=60, stale-while-revalidate=200',
+                },
+            },
+            { shared: false }
+        );
+
+        assert(cache.stale());
+        assert(cache.useStaleWhileRevalidate());
+        assert(cache.satisfiesWithoutRevalidation({ headers: {} }));
+    });
+
+    it('stale-while-revalidate satisfies when stale and must-revalidate', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 120,
+                    'cache-control': 'max-age=60, stale-while-revalidate=200, must-revalidate',
+                },
+            },
+            { shared: false }
+        );
+
+        assert(cache.stale());
+        assert(cache.satisfiesWithoutRevalidation({ headers: {} }));
+    });
+
+    it('stale-while-revalidate work with max-stale', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 100,
+                    'cache-control': 'max-age=60, stale-while-revalidate=200',
+                },
+            },
+            { shared: false }
+        );
+
+        assert(cache.stale());
+        assert(cache.satisfiesWithoutRevalidation({
+            headers: {
+                'cache-control': 'max-stale',
+            }
+        }));
+        assert(!cache.satisfiesWithoutRevalidation({
+            headers: {
+                'cache-control': 'max-stale=40',
+            }
+        }));
+    });
+
+    it('stale-while-revalidate not satisfies when stale and expired', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 260,
+                    'cache-control': 'max-age=60, stale-while-revalidate=200',
+                },
+            },
+            { shared: false }
+        );
+
+        assert(cache.stale());
+        assert(!cache.useStaleWhileRevalidate());
+        assert(!cache.satisfiesWithoutRevalidation({ headers: {} }));
+    });
+
     it('max age preferred over lower shared max age', function() {
         const cache = new CachePolicy(
             { headers: {} },
