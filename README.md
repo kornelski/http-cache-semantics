@@ -1,4 +1,4 @@
-# Can I cache this? [![Build Status](https://travis-ci.org/kornelski/http-cache-semantics.svg?branch=master)](https://travis-ci.org/kornelski/http-cache-semantics)
+# Can I cache this?308  [![Build Status](https://travis-ci.org/jariza00/http-cache-semantics.svg?branch=master)](https://travis-ci.org/kornelski/http-cache-semantics)
 
 `CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches.
 It also implements [RFC 5861](https://tools.ietf.org/html/rfc5861), implementing `stale-if-error` and `stale-while-revalidate`.
