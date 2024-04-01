@@ -12,7 +12,7 @@
         }
       },
     "scripts": {
-        "build": "pnpm exec tsup && pnpm run html-minifier",
+        "build": "pnpm exec tsup",
         "dev": "pnpm exec tsup --watch",
         "test": "NODE_OPTIONS=--experimental-vm-modules pnpm exec jest",
         "test:coverage": "NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --coverage",

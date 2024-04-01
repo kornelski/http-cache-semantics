@@ -5,7 +5,6 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "rootDir": "./src",
     "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",
@@ -14,5 +13,5 @@
     "strictPropertyInitialization": false
   },
   "exclude": [".backup/**/*", "tsup.config.ts", "node_modules"],
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test/**/*"]
 }

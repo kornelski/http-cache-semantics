@@ -1,56 +1,57 @@
-'use strict';
+import CachePolicy from '../src';
 
-const assert = require('assert');
-const CachePolicy = require('..');
-
-const simpleRequest = {
-    method: 'GET',
-    headers: {
-        host: 'www.w3c.org',
-        connection: 'close',
-    },
-    url: '/Protocols/rfc2616/rfc2616-sec14.html',
-};
-function withHeaders(request, headers) {
+const simpleRequest = new Request(
+    'http://www.w3c.org/Protocols/rfc2616/rfc2616-sec14.html',
+    {
+        method: 'GET',
+        headers: {
+            host: 'www.w3c.org',
+            connection: 'close',
+        },
+    }
+);
+function withHeaders(request: Request | Response, headers: HeadersInit) {
     return Object.assign({}, request, {
         headers: Object.assign({}, request.headers, headers),
     });
 }
 
-const cacheableResponse = { headers: { 'cache-control': 'max-age=111' } };
-const etaggedResponse = {
+const cacheableResponse = new Response(null, {
+    headers: { 'cache-control': 'max-age=111' },
+});
+const etaggedResponse = new Response(null, {
     headers: Object.assign({ etag: '"123456789"' }, cacheableResponse.headers),
-};
-const weakTaggedResponse = {
+});
+const weakTaggedResponse = new Response(null, {
     headers: Object.assign(
         { etag: 'W/"123456789"' },
         cacheableResponse.headers
     ),
-};
-const lastModifiedResponse = {
+});
+const lastModifiedResponse = new Response(null, {
     headers: Object.assign(
         { 'last-modified': 'Tue, 15 Nov 1994 12:45:26 GMT' },
         cacheableResponse.headers
     ),
-};
-const multiValidatorResponse = {
+});
+const multiValidatorResponse = new Response(null, {
     headers: Object.assign(
         {},
         etaggedResponse.headers,
         lastModifiedResponse.headers
     ),
-};
+});
 
 function notModifiedResponseHeaders(
-    firstRequest,
-    firstResponse,
-    secondRequest,
-    secondResponse
+    firstRequest: Request,
+    firstResponse: Response,
+    secondRequest: Request,
+    secondResponse: Response
 ) {
     const cache = new CachePolicy(firstRequest, firstResponse);
     const headers = cache.revalidationHeaders(secondRequest);
     const { policy: newCache, modified } = cache.revalidatedPolicy(
-        { headers },
+        new Request('http://localhost/', { headers }),
         secondResponse
     );
     if (modified) {
@@ -60,12 +61,15 @@ function notModifiedResponseHeaders(
 }
 
 function assertUpdates(
-    firstRequest,
-    firstResponse,
-    secondRequest,
-    secondResponse
+    firstRequest: Request,
+    firstResponse: Response,
+    secondRequest: Request,
+    secondResponse: Response
 ) {
-    firstResponse = withHeaders(firstResponse, { foo: 'original', 'x-other': 'original' });
+    firstResponse = withHeaders(firstResponse, {
+        foo: 'original',
+        'x-other': 'original',
+    });
     if (!firstResponse.status) {
         firstResponse.status = 200;
     }
@@ -83,15 +87,15 @@ function assertUpdates(
         secondRequest,
         secondResponse
     );
-    assert(headers);
-    assert.equal(headers['foo'], 'updated');
-    assert.equal(headers['x-other'], 'original');
-    assert.strictEqual(headers['x-ignore-new'], undefined);
-    assert.strictEqual(headers['etag'], secondResponse.headers.etag);
+    expect(headers).toBeTruthy();
+    expect(headers['foo']).toEqual('updated');
+    expect(headers['x-other']).toEqual('original');
+    expect(headers['x-ignore-new']).toBeUndefined();
+    expect(headers['etag']).toEqual(secondResponse.headers.get('etag'));
 }
 
-describe('Update revalidated', function() {
-    it('Matching etags are updated', function() {
+describe('Update revalidated', () => {
+    test('Matching etags are updated', () => {
         assertUpdates(
             simpleRequest,
             etaggedResponse,
@@ -100,7 +104,7 @@ describe('Update revalidated', function() {
         );
     });
 
-    it('Matching weak etags are updated', function() {
+    test('Matching weak etags are updated', () => {
         assertUpdates(
             simpleRequest,
             weakTaggedResponse,
@@ -109,7 +113,7 @@ describe('Update revalidated', function() {
         );
     });
 
-    it('Matching lastmod are updated', function() {
+    test('Matching lastmod are updated', () => {
         assertUpdates(
             simpleRequest,
             lastModifiedResponse,
@@ -118,7 +122,7 @@ describe('Update revalidated', function() {
         );
     });
 
-    it('Both matching are updated', function() {
+    test('Both matching are updated', () => {
         assertUpdates(
             simpleRequest,
             multiValidatorResponse,
@@ -127,7 +131,7 @@ describe('Update revalidated', function() {
         );
     });
 
-    it('Checks status', function() {
+    test('Checks status', () => {
         const response304 = Object.assign({}, multiValidatorResponse, {
             status: 304,
         });
@@ -140,68 +144,68 @@ describe('Update revalidated', function() {
             simpleRequest,
             response304
         );
-        assert(
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 multiValidatorResponse,
                 simpleRequest,
                 response200
             )
-        );
+        ).toBeFalsy();
     });
 
-    it('Last-mod ignored if etag is wrong', function() {
-        assert(
+    test('Last-mod ignored if etag is wrong', () => {
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 multiValidatorResponse,
                 simpleRequest,
                 withHeaders(multiValidatorResponse, { etag: 'bad' })
             )
-        );
-        assert(
+        ).toBeFalsy();
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 multiValidatorResponse,
                 simpleRequest,
                 withHeaders(multiValidatorResponse, { etag: 'W/bad' })
             )
-        );
+        ).toBeFalsy();
     });
 
-    it('Ignored if validator is missing', function() {
-        assert(
+    test('Ignored if validator is missing', () => {
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 etaggedResponse,
                 simpleRequest,
                 cacheableResponse
             )
-        );
-        assert(
+        ).toBeFalsy();
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 weakTaggedResponse,
                 simpleRequest,
                 cacheableResponse
             )
-        );
-        assert(
+        ).toBeFalsy();
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 lastModifiedResponse,
                 simpleRequest,
                 cacheableResponse
             )
-        );
+        ).toBeFalsy();
     });
 
-    it('Skips update of content-length', function() {
+    test('Skips update of content-length', () => {
         const etaggedResponseWithLenght1 = withHeaders(etaggedResponse, {
-            'content-length': 1,
+            'content-length': String(1),
         });
         const etaggedResponseWithLenght2 = withHeaders(etaggedResponse, {
-            'content-length': 2,
+            'content-length': String(2),
         });
         const headers = notModifiedResponseHeaders(
             simpleRequest,
@@ -209,78 +213,80 @@ describe('Update revalidated', function() {
             simpleRequest,
             etaggedResponseWithLenght2
         );
-        assert.equal(1, headers['content-length']);
+        expect(headers['content-length']).toEqual(1);
     });
 
-    it('Ignored if validator is different', function() {
-        assert(
+    test('Ignored if validator is different', () => {
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 lastModifiedResponse,
                 simpleRequest,
                 etaggedResponse
             )
-        );
-        assert(
+        ).toBeFalsy();
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 lastModifiedResponse,
                 simpleRequest,
                 weakTaggedResponse
             )
-        );
-        assert(
+        ).toBeFalsy();
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 etaggedResponse,
                 simpleRequest,
                 lastModifiedResponse
             )
-        );
+        ).toBeFalsy();
     });
 
-    it("Ignored if validator doesn't match", function() {
-        assert(
+    test("Ignored if validator doesn't match", () => {
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 etaggedResponse,
                 simpleRequest,
                 withHeaders(etaggedResponse, { etag: '"other"' })
-            ),
-            'bad etag'
-        );
-        assert(
+            )
+        ).toBeFalsy();
+        expect(
             !notModifiedResponseHeaders(
                 simpleRequest,
                 lastModifiedResponse,
                 simpleRequest,
                 withHeaders(lastModifiedResponse, { 'last-modified': 'dunno' })
-            ),
-            'bad lastmod'
-        );
+            )
+        ).toBeFalsy();
     });
 
-    it("staleIfError revalidate, no response", function() {
-        const cacheableStaleResponse = { headers: { 'cache-control': 'max-age=200, stale-if-error=300' } };
+    test('staleIfError revalidate, no response', () => {
+        const cacheableStaleResponse = new Response(null, {
+            headers: { 'cache-control': 'max-age=200, stale-if-error=300' },
+        });
         const cache = new CachePolicy(simpleRequest, cacheableStaleResponse);
 
         const { policy, modified } = cache.revalidatedPolicy(
             simpleRequest,
-            null
+            null as unknown as Response
         );
-        assert(policy === cache);
-        assert(modified === false);
+        expect(policy).toBe(cache);
+        expect(modified).toBeFalsy();
     });
 
-    it("staleIfError revalidate, server error", function() {
-        const cacheableStaleResponse = { headers: { 'cache-control': 'max-age=200, stale-if-error=300' } };
+    test('staleIfError revalidate, server error', () => {
+        const cacheableStaleResponse = new Response(null, {
+            headers: { 'cache-control': 'max-age=200, stale-if-error=300' },
+        });
         const cache = new CachePolicy(simpleRequest, cacheableStaleResponse);
 
         const { policy, modified } = cache.revalidatedPolicy(
             simpleRequest,
-            { status: 500 }
+            new Response(null, { status: 500 })
         );
-        assert(policy === cache);
-        assert(modified === false);
+        expect(policy).toBe(cache);
+        expect(modified).toBeFalsy();
     });
 });

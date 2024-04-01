@@ -1,6 +1,7 @@
+/** @type {import('jest').Config} */
 export default {
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/src/**/(*.)+(spec|test).+(ts|tsx|js)'],
+  roots: ['<rootDir>/src', '<rootDir>/test'],
+  testMatch: ['**/(*.)+(spec|test).+(ts|tsx|js)'],
   transform: {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
