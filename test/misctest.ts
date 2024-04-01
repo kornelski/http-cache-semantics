@@ -1,7 +1,5 @@
-'use strict';
-
-const assert = require('assert');
-const CachePolicy = require('..');
+import assert from 'assert';
+import CachePolicy from '../src';
 
 describe('Other', function() {
     it('Thaw wrong object', function() {
