@@ -1,13 +1,13 @@
 import CachePolicy from '../src';
 
 describe('Other', () => {
-    it('Thaw wrong object', () => {
+    test('Thaw wrong object', () => {
         expect(() => {
             CachePolicy.fromObject({} as any);
         }).toThrow();
     });
 
-    it('Missing headers', () => {
+    test('Missing headers', () => {
         expect(() => {
             new CachePolicy({} as Request, undefined as unknown as Response);
         }).toThrow();
@@ -33,7 +33,7 @@ describe('Other', () => {
         }).toThrow();
     });
 
-    it('GitHub response with small clock skew', () => {
+    test('GitHub response with small clock skew', () => {
         const res = new Response(null, {
             headers: {
                 server: 'GitHub.com',
