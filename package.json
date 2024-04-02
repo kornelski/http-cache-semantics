@@ -3,14 +3,16 @@
     "type": "module",
     "version": "0.0.1",
     "description": "Parses Cache-Control and other headers. Helps building correct HTTP caches and proxies",
-    "repository": "https://github.com/web-widget/http-cache-semantics.git",
+    "repository": {
+        "url": "git+https://github.com/web-widget/http-cache-semantics.git"
+    },
     "exports": {
         ".": {
-          "types": "./dist/http-cache-semantics.d.ts",
-          "development": "./src/index.ts",
-          "default": "./dist/http-cache-semantics.js"
+            "types": "./dist/http-cache-semantics.d.ts",
+            "development": "./src/index.ts",
+            "default": "./dist/http-cache-semantics.js"
         }
-      },
+    },
     "scripts": {
         "build": "pnpm exec tsup",
         "dev": "pnpm exec tsup --watch",
@@ -37,10 +39,10 @@
     "publishConfig": {
         "access": "public",
         "exports": {
-          ".": {
-            "types": "./dist/http-cache-semantics.d.ts",
-            "default": "./dist/http-cache-semantics.js"
-          }
+            ".": {
+                "types": "./dist/http-cache-semantics.d.ts",
+                "default": "./dist/http-cache-semantics.js"
+            }
         }
-      }
+    }
 }
