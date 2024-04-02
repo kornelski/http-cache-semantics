@@ -1,4 +1,4 @@
-# Can I cache this? [![Build Status](https://travis-ci.org/kornelski/http-cache-semantics.svg?branch=master)](https://travis-ci.org/kornelski/http-cache-semantics)
+# Can I cache this? [![CI](https://github.com/web-widget/http-cache-semantics/actions/workflows/test.yml/badge.svg?event=push)](https://github.com/web-widget/http-cache-semantics/actions/workflows/test.yml?query=event%3Apush)
 
 > This library is forked from [http-cache-semantics](https://github.com/kornelski/http-cache-semantics), adding support for web standards and exporting in ESM format.
 
@@ -198,7 +198,7 @@ if (!oldPolicy.satisfiesWithoutRevalidation(newRequest)) {
 
 Per the RFC, the cache should take into account the time between server-supplied `Date` and the time it received the response. The RFC-mandated behavior creates two problems:
 
- * Servers with incorrectly set timezone may add several hours to cache age (or more, if the clock is completely wrong).
- * Even reasonably correct clocks may be off by a couple of seconds, breaking `max-age=1` trick (which is useful for reverse proxies on high-traffic servers).
+-   Servers with incorrectly set timezone may add several hours to cache age (or more, if the clock is completely wrong).
+-   Even reasonably correct clocks may be off by a couple of seconds, breaking `max-age=1` trick (which is useful for reverse proxies on high-traffic servers).
 
 Previous versions of this library had an option to ignore the server date if it was "too inaccurate". To support the `max-age=1` trick the library also has to ignore dates that pretty accurate. There's no point of having an option to trust dates that are only a bit inaccurate, so this library won't trust any server dates. `max-age` will be interpreted from the time the response has been received, not from when it has been sent. This will affect only [RFC 1149 networks](https://tools.ietf.org/html/rfc1149).
