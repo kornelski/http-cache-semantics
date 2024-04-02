@@ -1,0 +1,50 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '!*'
+
+env:
+  NODE_VERSION: '20'
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            node_modules/.cache/turbo
+            node_modules/.pnpm
+          key: ${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - run: corepack enable && pnpm --version
+
+      - run: pnpm install --recursive --no-frozen-lockfile --loglevel=error
+
+      - run: pnpm build
+
+      - name: Create Release Pull Request
+        uses: changesets/action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        with:
+          version: pnpm version:prepare
+          publish: pnpm version:publish

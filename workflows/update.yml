@@ -1,0 +1,29 @@
+# https://gist.github.com/Purpzie/8ed86ae38c73f440881bbee0523a324b
+# https://github.com/dependabot/dependabot-core/issues/1736
+name: Dependabot
+on: pull_request_target
+permissions: read-all
+env:
+  NODE_VERSION: '20'
+jobs:
+  update-lockfile:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: corepack enable && pnpm --version
+      - run: pnpm i --lockfile-only
+      - run: |
+          git config --global user.name github-actions[bot]
+          git config --global user.email github-actions[bot]@users.noreply.github.com
+          git add pnpm-lock.yaml
+          git commit -m "Update pnpm-lock.yaml" || echo "No changes to commit"
+          git push origin ${{ github.head_ref }}
