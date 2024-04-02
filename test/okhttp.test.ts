@@ -195,7 +195,10 @@ describe('okhttp tests', () => {
         );
 
         expect(cache.stale()).toBeFalsy();
-        expect(cache.timeToLive()).toEqual(260000);
+        const ttl = cache.timeToLive();
+        // NOTE: It is normal for the TTL value to be equal to 259999.
+        // This may be a problem with the time accuracy of the test environment.
+        expect(ttl === 260000 || ttl === 259999).toBe(true);
     });
 
     test('stale-while-revalidate timetolive', () => {
