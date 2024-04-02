@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "composite": false,
+    "declaration": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ESNext",
+    "types": ["jest"],
+    "esModuleInterop": true,
+    "strictPropertyInitialization": false
+  },
+  "exclude": [".backup/**/*", "tsup.config.ts", "node_modules"],
+  "include": ["src/**/*", "test/**/*"]
+}

@@ -1,18 +1,46 @@
 {
-    "name": "http-cache-semantics",
-    "version": "4.1.1",
+    "name": "@web-widget/http-cache-semantics",
+    "type": "module",
+    "version": "0.0.1",
     "description": "Parses Cache-Control and other headers. Helps building correct HTTP caches and proxies",
-    "repository": "https://github.com/kornelski/http-cache-semantics.git",
-    "main": "index.js",
+    "repository": "https://github.com/web-widget/http-cache-semantics.git",
+    "exports": {
+        ".": {
+          "types": "./dist/http-cache-semantics.d.ts",
+          "development": "./src/index.ts",
+          "default": "./dist/http-cache-semantics.js"
+        }
+      },
     "scripts": {
-        "test": "mocha"
+        "build": "pnpm exec tsup",
+        "dev": "pnpm exec tsup --watch",
+        "test": "NODE_OPTIONS=--experimental-vm-modules pnpm exec jest",
+        "test:coverage": "NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --coverage",
+        "clean:build": "rm -rf dist",
+        "clean:node": "rm -rf node_modules",
+        "prebuild": "pnpm run clean:build"
     },
     "files": [
-        "index.js"
+        "dist"
     ],
     "author": "Kornel Lesiński <kornel@geekhood.net> (https://kornel.ski/)",
     "license": "BSD-2-Clause",
     "devDependencies": {
-        "mocha": "^10.0"
-    }
+        "@types/jest": "^29.5.3",
+        "jest": "^29.6.2",
+        "miniflare": "^3.20240129.1",
+        "jest-environment-miniflare": "^2.14.2",
+        "ts-jest": "^29.1.1",
+        "tsup": "^8.0.1",
+        "typescript": "latest"
+    },
+    "publishConfig": {
+        "access": "public",
+        "exports": {
+          ".": {
+            "types": "./dist/http-cache-semantics.d.ts",
+            "default": "./dist/http-cache-semantics.js"
+          }
+        }
+      }
 }

@@ -1,5 +1,7 @@
 # Can I cache this? [![Build Status](https://travis-ci.org/kornelski/http-cache-semantics.svg?branch=master)](https://travis-ci.org/kornelski/http-cache-semantics)
 
+> This library is forked from [http-cache-semantics](https://github.com/kornelski/http-cache-semantics), adding support for web standards and exporting in ESM format.
+
 `CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches.
 It also implements [RFC 5861](https://tools.ietf.org/html/rfc5861), implementing `stale-if-error` and `stale-while-revalidate`.
 It's aware of many tricky details such as the `Vary` header, proxy revalidation, and authenticated responses.
@@ -47,20 +49,19 @@ The key method is `satisfiesWithoutRevalidation(newRequest)`, which checks wheth
 Request and response must have a `headers` property with all header names in lower case. `url`, `status` and `method` are optional (defaults are any URL, status `200`, and `GET` method).
 
 ```js
-const request = {
-    url: '/',
+const request = new Request('http://localhost/', {
     method: 'GET',
     headers: {
         accept: '*/*',
     },
-};
+});
 
-const response = {
+const response = new Response(null, {
     status: 200,
     headers: {
         'cache-control': 'public, max-age=7234',
     },
-};
+});
 
 const options = {
     shared: true,

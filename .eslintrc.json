@@ -1,7 +1,7 @@
 {
     "env": {
-        "node": true,
+        "worker": true,
         "es6": true,
-        "mocha": true
+        "jest": true
     }
 }

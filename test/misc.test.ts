@@ -1,37 +1,40 @@
-'use strict';
+import CachePolicy from '../src';
 
-const assert = require('assert');
-const CachePolicy = require('..');
-
-describe('Other', function() {
-    it('Thaw wrong object', function() {
-        assert.throws(() => {
-            CachePolicy.fromObject({});
-        });
+describe('Other', () => {
+    it('Thaw wrong object', () => {
+        expect(() => {
+            CachePolicy.fromObject({} as any);
+        }).toThrow();
     });
 
-    it('Missing headers', function() {
-        assert.throws(() => {
-            new CachePolicy({});
-        });
-        assert.throws(() => {
-            new CachePolicy({ headers: {} }, {});
-        });
+    it('Missing headers', () => {
+        expect(() => {
+            new CachePolicy({} as Request, undefined as unknown as Response);
+        }).toThrow();
+        expect(() => {
+            new CachePolicy({ headers: {} } as Request, {} as Response);
+        }).toThrow();
 
-        const cache = new CachePolicy({ headers: {} }, { headers: {} });
-        assert.throws(() => {
-            cache.satisfiesWithoutRevalidation({});
-        });
-        assert.throws(() => {
-            cache.revalidatedPolicy({});
-        });
-        assert.throws(() => {
-            cache.revalidatedPolicy({ headers: {} }, {});
-        });
+        const cache = new CachePolicy(
+            new Request('http://localhost/'),
+            new Response()
+        );
+        expect(() => {
+            cache.satisfiesWithoutRevalidation({} as Request);
+        }).toThrow();
+        expect(() => {
+            cache.revalidatedPolicy(
+                {} as Request,
+                undefined as unknown as Response
+            );
+        }).toThrow();
+        expect(() => {
+            cache.revalidatedPolicy({ headers: {} } as Request, {} as Response);
+        }).toThrow();
     });
 
-    it('GitHub response with small clock skew', function() {
-        const res = {
+    it('GitHub response with small clock skew', () => {
+        const res = new Response(null, {
             headers: {
                 server: 'GitHub.com',
                 date: new Date(Date.now() - 77 * 1000).toUTCString(),
@@ -49,8 +52,7 @@ describe('Other', function() {
                     'public_repo, read:user, repo:invite, repo:status, repo_deployment',
                 'x-accepted-oauth-scopes': '',
                 'x-github-media-type': 'github.v3',
-                link:
-                    '<https://api.github.com/user/4757745/starred?per_page=1&page=2>; rel="next", <https://api.github.com/user/4757745/starred?per_page=1&page=1120>; rel="last"',
+                link: '<https://api.github.com/user/4757745/starred?per_page=1&page=2>; rel="next", <https://api.github.com/user/4757745/starred?per_page=1&page=1120>; rel="last"',
                 'access-control-expose-headers':
                     'ETag, Link, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval',
                 'access-control-allow-origin': '*',
@@ -66,16 +68,17 @@ describe('Other', function() {
                 'content-encoding': 'gzip',
                 'x-github-request-id': 'C6EE:12E7:3E6CA0D:87F0004:5ADB2B35',
             },
-        };
+        });
 
-        const req = {
+        const req = new Request('https://github.com', {
             headers: {},
-        };
+        });
 
         const c = new CachePolicy(req, res, {
             shared: false,
+            // @ts-ignore
             trustServerDate: false,
         });
-        assert(c.satisfiesWithoutRevalidation(req));
+        expect(c.satisfiesWithoutRevalidation(req)).toBeTruthy();
     });
 });
