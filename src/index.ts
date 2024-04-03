@@ -79,7 +79,46 @@ function headersToObject(headers: Headers): Record<string, string> {
     return obj;
 }
 
-type CacheValue = {
+export type Options = {
+    /**
+     * If `true`, then the response is evaluated from a perspective of a shared cache (i.e. `private` is not
+     * cacheable and `s-maxage` is respected). If `false`, then the response is evaluated from a perspective
+     * of a single-user cache (i.e. `private` is cacheable and `s-maxage` is ignored).
+     * `true` is recommended for HTTP clients.
+     * @default true
+     */
+    shared?: boolean;
+    /**
+     * A fraction of response's age that is used as a fallback cache duration. The default is 0.1 (10%),
+     * e.g. if a file hasn't been modified for 100 days, it'll be cached for 100*0.1 = 10 days.
+     * @default 0.1
+     */
+    cacheHeuristic?: number;
+    /**
+     * A number of milliseconds to assume as the default time to cache responses with `Cache-Control: immutable`.
+     * Note that [per RFC](https://httpwg.org/specs/rfc8246.html#the-immutable-cache-control-extension)
+     * these can become stale, so `max-age` still overrides the default.
+     * @default 24*3600*1000 (24h)
+     */
+    immutableMinTimeToLive?: number;
+    /**
+     * If `true`, common anti-cache directives will be completely ignored if the non-standard `pre-check`
+     * and `post-check` directives are present. These two useless directives are most commonly found
+     * in bad StackOverflow answers and PHP's "session limiter" defaults.
+     * @default false
+     */
+    ignoreCargoCult?: boolean;
+    /**
+     * If `false`, then server's `Date` header won't be used as the base for `max-age`. This is against the RFC,
+     * but it's useful if you want to cache responses with very short `max-age`, but your local clock
+     * is not exactly in sync with the server's.
+     * @default true
+     */
+    trustServerDate?: boolean;
+    _fromObject?: CachePolicyObject;
+};
+
+export type CachePolicyObject = {
     v: number;
     t: number;
     sh: boolean;
@@ -94,6 +133,25 @@ type CacheValue = {
     a: boolean;
     reqh: Record<string, string> | null;
     reqcc: Record<string, string | boolean>;
+};
+
+export type RevalidationPolicy = {
+    /**
+     * A new `CachePolicy` with HTTP headers updated from `revalidationResponse`. You can always replace
+     * the old cached `CachePolicy` with the new one.
+     */
+    policy: CachePolicy;
+    /**
+     * Boolean indicating whether the response body has changed.
+     *
+     * - If `false`, then a valid 304 Not Modified response has been received, and you can reuse the old
+     * cached response body.
+     * - If `true`, you should use new response's body (if present), or make another request to the origin
+     * server without any conditional headers (i.e. don't use `revalidationHeaders()` this time) to get
+     * the new resource.
+     */
+    modified: boolean;
+    matches: boolean;
 };
 
 export default class CachePolicy {
@@ -119,13 +177,7 @@ export default class CachePolicy {
             immutableMinTimeToLive,
             ignoreCargoCult,
             _fromObject,
-        }: {
-            shared?: boolean;
-            cacheHeuristic?: number;
-            immutableMinTimeToLive?: number;
-            ignoreCargoCult?: boolean;
-            _fromObject?: CacheValue;
-        } = {}
+        }: Options = {}
     ) {
         if (_fromObject) {
             this.#fromObject(_fromObject);
@@ -146,12 +198,12 @@ export default class CachePolicy {
                 ? immutableMinTimeToLive
                 : 24 * 3600 * 1000;
 
-        this.#status = 'status' in res ? res.status : 200;
+        this.#status = res.status;
         this.#resHeaders = res.headers;
         this.#resCacheControl = parseCacheControl(
             res.headers.get('cache-control')
         );
-        this.#method = 'method' in req ? req.method : 'GET';
+        this.#method = req.method;
         this.#url = req.url;
         this.#host = req.headers.get('host');
         this.#noAuthorization = !req.headers.has('authorization');
@@ -194,11 +246,18 @@ export default class CachePolicy {
         }
     }
 
+    /**
+     * @returns Date.now()
+     */
     now() {
         return Date.now();
     }
 
-    storable() {
+    /**
+     * Returns `true` if the response can be stored in a cache.
+     * If it's `false` then you MUST NOT store either the request or the response.
+     */
+    storable(): boolean {
         // The "no-store" request directive indicates that a cache MUST NOT store any part of either this request or any response to it.
         return !!(
             !this.#reqCacheControl['no-store'] &&
@@ -246,7 +305,18 @@ export default class CachePolicy {
         }
     }
 
-    satisfiesWithoutRevalidation(req: Request) {
+    /**
+     * This is the most important method. Use this method to check whether the cached response is still fresh
+     * in the context of the new request.
+     *
+     * If it returns `true`, then the given `request` matches the original response this cache policy has been
+     * created with, and the response can be reused without contacting the server. Note that the old response
+     * can't be returned without being updated, see `responseHeaders()`.
+     *
+     * If it returns `false`, then the response may not be matching at all (e.g. it's for a different URL or method),
+     * or may require to be refreshed first (see `revalidationHeaders()`).
+     */
+    satisfiesWithoutRevalidation(req: Request): boolean {
         this.#assertRequestHasHeaders(req);
 
         // When presented with a request, a cache MUST NOT reuse a stored response, unless:
@@ -371,7 +441,15 @@ export default class CachePolicy {
         return headers;
     }
 
-    responseHeaders() {
+    /**
+     * Returns updated, filtered set of response headers to return to clients receiving the cached response.
+     * This function is necessary, because proxies MUST always remove hop-by-hop headers (such as `TE` and `Connection`)
+     * and update response's `Age` to avoid doubling cache time.
+     *
+     * @example
+     * cachedResponse.headers = cachePolicy.responseHeaders(cachedResponse);
+     */
+    responseHeaders(): Headers {
         const headers = this.#copyWithoutHopByHopHeaders(this.#resHeaders);
         const age = this.age();
 
@@ -420,8 +498,7 @@ export default class CachePolicy {
     }
 
     /**
-     * Possibly outdated value of applicable max-age (or heuristic equivalent) in seconds.
-     * This counts since response's `Date`.
+     * Value of applicable max-age (or heuristic equivalent) in seconds. This counts since response's `Date`.
      *
      * For an up-to-date value, see `timeToLive()`.
      */
@@ -492,9 +569,11 @@ export default class CachePolicy {
     }
 
     /**
-     * Up-to-date `max-age` value, in *milliseconds*.
+     * Returns approximate time in milliseconds until the response becomes stale (i.e. not fresh).
      *
-     * Prefer this method over `maxAge()`.
+     * After that time (when `timeToLive() <= 0`) the response might not be usable without revalidation. However,
+     * there are exceptions, e.g. a client can explicitly allow stale responses, so always check with
+     * `satisfiesWithoutRevalidation()`.
      */
     timeToLive() {
         const age = this.maxAge() - this.age();
@@ -535,7 +614,10 @@ export default class CachePolicy {
         );
     }
 
-    static fromObject(obj: CacheValue) {
+    /**
+     * `policy = CachePolicy.fromObject(obj)` creates an instance from object created by `toObject()`.
+     */
+    static fromObject(obj: CachePolicyObject) {
         return new this(
             undefined as unknown as Request,
             undefined as unknown as Response,
@@ -543,7 +625,7 @@ export default class CachePolicy {
         );
     }
 
-    #fromObject(obj: CacheValue) {
+    #fromObject(obj: CachePolicyObject) {
         if (this.#responseTime) throw Error('Reinitialized');
         if (!obj || obj.v !== 1) throw Error('Invalid serialization');
 
@@ -563,7 +645,11 @@ export default class CachePolicy {
         this.#reqCacheControl = obj.reqcc;
     }
 
-    toObject(): CacheValue {
+    /**
+     * Chances are you'll want to store the `CachePolicy` object along with the cached response.
+     * `obj = policy.toObject()` gives a plain JSON-serializable object.
+     */
+    toObject(): CachePolicyObject {
         return {
             v: 1,
             t: this.#responseTime,
@@ -583,11 +669,14 @@ export default class CachePolicy {
     }
 
     /**
-     * Headers for sending to the origin server to revalidate stale response.
-     * Allows server to return 304 to allow reuse of the previous response.
+     * Returns updated, filtered set of request headers to send to the origin server to check if the cached
+     * response can be reused. These headers allow the origin server to return status 304 indicating the
+     * response is still fresh. All headers unrelated to caching are passed through as-is.
      *
-     * Hop by hop headers are always stripped.
-     * Revalidation headers may be added or removed, depending on request.
+     * Use this method when updating cache from the origin server.
+     *
+     * @example
+     * updateRequest.headers = cachePolicy.revalidationHeaders(updateRequest);
      */
     revalidationHeaders(req: Request) {
         this.#assertRequestHasHeaders(req);
@@ -660,8 +749,13 @@ export default class CachePolicy {
      *
      * Returns {policy, modified} where modified is a boolean indicating
      * whether the response body has been modified, and old cached body can't be used.
+     *
+     * Use this method to update the cache after receiving a new response from the origin server.
      */
-    revalidatedPolicy(request: Request, response: Response) {
+    revalidatedPolicy(
+        request: Request,
+        response: Response
+    ): RevalidationPolicy {
         this.#assertRequestHasHeaders(request);
         if (this.#useStaleIfError() && isErrorResponse(response)) {
             // I consider the revalidation request unsuccessful

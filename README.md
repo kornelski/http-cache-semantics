@@ -46,8 +46,6 @@ The key method is `satisfiesWithoutRevalidation(newRequest)`, which checks wheth
 
 ### Constructor options
 
-Request and response must have a `headers` property with all header names in lower case. `url`, `status` and `method` are optional (defaults are any URL, status `200`, and `GET` method).
-
 ```js
 const request = new Request('http://localhost/', {
     method: 'GET',
