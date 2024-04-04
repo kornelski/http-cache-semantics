@@ -1,5 +1,11 @@
 # @web-widget/http-cache-semantics
 
+## 0.0.4
+
+### Patch Changes
+
+-   ab4dc5c: Public `useStaleIfError` method.
+
 ## 0.0.3
 
 ### Patch Changes

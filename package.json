@@ -2,7 +2,7 @@
   "name": "@web-widget/http-cache-semantics",
   "description": "Parses Cache-Control and other headers. Helps building correct HTTP caches and proxies",
   "homepage": "https://github.com/web-widget/http-cache-semantics#readme",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "exports": {
     ".": {
       "types": "./dist/http-cache-semantics.d.ts",
