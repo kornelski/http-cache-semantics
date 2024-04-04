@@ -594,7 +594,7 @@ export default class CachePolicy {
         return this.maxAge() <= this.age();
     }
 
-    #useStaleIfError() {
+    useStaleIfError() {
         return (
             this.maxAge() +
                 toNumberOrZero(
@@ -757,7 +757,7 @@ export default class CachePolicy {
         response: Response
     ): RevalidationPolicy {
         this.#assertRequestHasHeaders(request);
-        if (this.#useStaleIfError() && isErrorResponse(response)) {
+        if (this.useStaleIfError() && isErrorResponse(response)) {
             // I consider the revalidation request unsuccessful
             return {
                 modified: false,

@@ -1,6 +1,6 @@
 # Can I cache this? [![CI](https://github.com/web-widget/http-cache-semantics/actions/workflows/test.yml/badge.svg?event=push)](https://github.com/web-widget/http-cache-semantics/actions/workflows/test.yml?query=event%3Apush)
 
-> This library is forked from [http-cache-semantics](https://github.com/kornelski/http-cache-semantics), adding support for web standards and exporting in ESM format.
+> ✨ This library is forked from [http-cache-semantics](https://github.com/kornelski/http-cache-semantics), adding support for web standards and exporting in ESM format.
 
 `CachePolicy` tells when responses can be reused from a cache, taking into account [HTTP RFC 7234](http://httpwg.org/specs/rfc7234.html) rules for user agents and shared caches.
 It also implements [RFC 5861](https://tools.ietf.org/html/rfc5861), implementing `stale-if-error` and `stale-while-revalidate`.
