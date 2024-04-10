@@ -31,9 +31,7 @@
     "jest": "^29.6.2",
     "jest-environment-miniflare": "^2.14.2",
     "miniflare": "^3.20240129.1",
-    "nano-staged": "latest",
     "prettier": "latest",
-    "simple-git-hooks": "latest",
     "ts-jest": "^29.1.1",
     "tsup": "^8.0.1",
     "typescript": "latest"
@@ -52,7 +50,6 @@
     "dev": "pnpm exec tsup --watch",
     "lint": "turbo run lint",
     "lockfile": "pnpm install --lockfile && git add pnpm-lock.yaml && git commit -m \"build: regenerate lock\"",
-    "postinstall": "simple-git-hooks",
     "prebuild": "pnpm run clean:build",
     "prettier": "prettier **/*.{ts,tsx,js,vue} --write",
     "test": "NODE_OPTIONS=--experimental-vm-modules c8 jest",
@@ -62,14 +59,6 @@
     "version:publish": "changeset publish"
   },
   "license": "BSD-2-Clause",
-  "nano-staged": {
-    "*.{ts,tsx,md,mdx,js,jsx}": [
-      "prettier --write"
-    ],
-    "package.json": [
-      "finepack"
-    ]
-  },
   "packageManager": "pnpm@8.4.0",
   "publishConfig": {
     "access": "public",
@@ -79,9 +68,6 @@
         "default": "./dist/http-cache-semantics.js"
       }
     }
-  },
-  "simple-git-hooks": {
-    "pre-commit": "./node_modules/.bin/nano-staged"
   },
   "type": "module"
 }

@@ -71,14 +71,6 @@ function formatCacheControl(cc: Record<string, boolean | string>) {
     return parts.join(', ');
 }
 
-function headersToObject(headers: Headers): Record<string, string> {
-    let obj: Record<string, string> = {};
-    for (let [key, value] of headers.entries()) {
-        obj[key] = value;
-    }
-    return obj;
-}
-
 export type Options = {
     /**
      * If `true`, then the response is evaluated from a perspective of a shared cache (i.e. `private` is not
@@ -657,13 +649,13 @@ export default class CachePolicy {
             ch: this.#cacheHeuristic,
             imm: this.#immutableMinTtl,
             st: this.#status,
-            resh: headersToObject(this.#resHeaders),
+            resh: Object.fromEntries(this.#resHeaders.entries()),
             rescc: this.#resCacheControl,
             m: this.#method,
             u: this.#url,
             h: this.#host,
             a: this.#noAuthorization,
-            reqh: this.#reqHeaders ? headersToObject(this.#reqHeaders) : null,
+            reqh: this.#reqHeaders ? Object.fromEntries(this.#reqHeaders.entries()) : null,
             reqcc: this.#reqCacheControl,
         };
     }
