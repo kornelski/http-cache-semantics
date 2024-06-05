@@ -1,5 +1,11 @@
 # @web-widget/http-cache-semantics
 
+## 1.1.0
+
+### Minor Changes
+
+- 8bcc0a0: Add cache query option.
+
 ## 1.0.0
 
 ### Major Changes
