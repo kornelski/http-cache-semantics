@@ -146,6 +146,13 @@ export type RevalidationPolicy = {
   matches: boolean;
 };
 
+export type CacheQueryOptions = {
+  ignoreRequestCacheControl?: boolean;
+  // ignoreMethod?: boolean;
+  ignoreSearch?: boolean;
+  // ignoreVary?: boolean;
+};
+
 export default class CachePolicy {
   #responseTime: number;
   #isShared: boolean;
@@ -155,7 +162,7 @@ export default class CachePolicy {
   #resHeaders: Headers;
   #resCacheControl: Record<string, string | boolean>;
   #method: string;
-  #url: string;
+  #url: URL;
   #host: string | null;
   #noAuthorization: boolean;
   #reqCacheControl: Record<string, string | boolean>;
@@ -193,7 +200,7 @@ export default class CachePolicy {
     this.#resHeaders = res.headers;
     this.#resCacheControl = parseCacheControl(res.headers.get('cache-control'));
     this.#method = req.method;
-    this.#url = req.url;
+    this.#url = new URL(req.url);
     this.#host = req.headers.get('host');
     this.#noAuthorization = !req.headers.has('authorization');
     this.#reqHeaders = res.headers.has('vary') ? req.headers : null; // Don't keep all request headers if they won't be used
@@ -303,9 +310,20 @@ export default class CachePolicy {
    * If it returns `false`, then the response may not be matching at all (e.g. it's for a different URL or method),
    * or may require to be refreshed first (see `revalidationHeaders()`).
    */
-  satisfiesWithoutRevalidation(req: Request): boolean {
+  satisfiesWithoutRevalidation(req: Request, opt?: CacheQueryOptions): boolean {
     this.#assertRequestHasHeaders(req);
 
+    if (
+      !opt?.ignoreRequestCacheControl &&
+      !this.#requestCacheControlMatches(req)
+    ) {
+      return false;
+    }
+
+    return this.#requestCacheKeyMatches(req, false, opt);
+  }
+
+  #requestCacheControlMatches(req: Request) {
     // When presented with a request, a cache MUST NOT reuse a stored response, unless:
     // the presented request does not contain the no-cache pragma (Section 5.4), nor the no-cache cache directive,
     // unless the stored response is successfully validated (Section 4.3), and
@@ -344,13 +362,20 @@ export default class CachePolicy {
       }
     }
 
-    return this.#requestMatches(req, false);
+    return true;
   }
 
-  #requestMatches(req: Request, allowHeadMethod: boolean) {
+  #requestCacheKeyMatches(
+    req: Request,
+    allowHeadMethod: boolean,
+    opt?: CacheQueryOptions
+  ) {
+    const url = new URL(req.url);
     // The presented effective request URI and that of the stored response match, and
     return (
-      (!this.#url || this.#url === req.url) &&
+      (!this.#url || opt?.ignoreSearch
+        ? this.#url.origin + this.#url.pathname === url.origin + url.pathname
+        : this.#url.href === url.href) &&
       this.#host === req.headers.get('host') &&
       // the request method associated with the stored response allows it to be used for the presented request, and
       (!req.method ||
@@ -611,7 +636,7 @@ export default class CachePolicy {
     this.#resHeaders = new Headers(obj.resh);
     this.#resCacheControl = obj.rescc;
     this.#method = obj.m;
-    this.#url = obj.u;
+    this.#url = new URL(obj.u);
     this.#host = obj.h;
     this.#noAuthorization = obj.a;
     this.#reqHeaders = obj.reqh ? new Headers(obj.reqh) : null;
@@ -633,7 +658,7 @@ export default class CachePolicy {
       resh: Object.fromEntries(this.#resHeaders.entries()),
       rescc: this.#resCacheControl,
       m: this.#method,
-      u: this.#url,
+      u: this.#url.href,
       h: this.#host,
       a: this.#noAuthorization,
       reqh: this.#reqHeaders
@@ -653,14 +678,14 @@ export default class CachePolicy {
    * @example
    * updateRequest.headers = cachePolicy.revalidationHeaders(updateRequest);
    */
-  revalidationHeaders(req: Request) {
+  revalidationHeaders(req: Request, opt?: CacheQueryOptions) {
     this.#assertRequestHasHeaders(req);
     const headers = this.#copyWithoutHopByHopHeaders(req.headers);
 
     // This implementation does not understand range requests
     headers.delete('if-range');
 
-    if (!this.#requestMatches(req, true) || !this.storable()) {
+    if (!this.#requestCacheKeyMatches(req, true, opt) || !this.storable()) {
       // revalidation allowed via HEAD
       // not for the same resource, or wasn't allowed to be cached anyway
       headers.delete('if-none-match');
