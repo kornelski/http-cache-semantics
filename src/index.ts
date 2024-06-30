@@ -148,9 +148,9 @@ export type RevalidationPolicy = {
 
 export type CacheQueryOptions = {
   ignoreRequestCacheControl?: boolean;
-  // ignoreMethod?: boolean;
+  ignoreMethod?: boolean;
   ignoreSearch?: boolean;
-  // ignoreVary?: boolean;
+  ignoreVary?: boolean;
 };
 
 export default class CachePolicy {
@@ -370,19 +370,13 @@ export default class CachePolicy {
     allowHeadMethod: boolean,
     opt?: CacheQueryOptions
   ) {
-    const url = new URL(req.url);
-    // The presented effective request URI and that of the stored response match, and
     return (
-      (!this.#url || opt?.ignoreSearch
-        ? this.#url.origin + this.#url.pathname === url.origin + url.pathname
-        : this.#url.href === url.href) &&
-      this.#host === req.headers.get('host') &&
+      // The presented effective request URI and that of the stored response match, and
+      this.#urlMatches(req, opt?.ignoreSearch) &&
       // the request method associated with the stored response allows it to be used for the presented request, and
-      (!req.method ||
-        this.#method === req.method ||
-        (allowHeadMethod && 'HEAD' === req.method)) &&
+      this.#methodMatches(req, allowHeadMethod, opt?.ignoreMethod) &&
       // selecting header fields nominated by the stored response (if any) match those presented, and
-      this.#varyMatches(req)
+      this.#varyMatches(req, opt?.ignoreVary)
     );
   }
 
@@ -395,7 +389,32 @@ export default class CachePolicy {
     );
   }
 
-  #varyMatches(req: Request) {
+  #urlMatches(req: Request, ignoreSearch?: boolean) {
+    const url = new URL(req.url);
+    return (
+      (ignoreSearch
+        ? this.#url.origin + this.#url.pathname === url.origin + url.pathname
+        : this.#url.href === url.href) && this.#host === req.headers.get('host')
+    );
+  }
+
+  #methodMatches(
+    req: Request,
+    allowHeadMethod?: boolean,
+    ignoreMethod?: boolean
+  ) {
+    return (
+      ignoreMethod ||
+      this.#method === req.method ||
+      (allowHeadMethod ? 'HEAD' === req.method : false)
+    );
+  }
+
+  #varyMatches(req: Request, ignoreVary?: boolean) {
+    if (ignoreVary) {
+      return true;
+    }
+
     if (!this.#resHeaders.has('vary')) {
       return true;
     }
