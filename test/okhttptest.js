@@ -210,7 +210,7 @@ describe('okhttp tests', function() {
         assert.equal(cache.timeToLive(), 260000);
     });
 
-    it('stale-while-revalidate satisfies when stale', function() {
+    it('stale-while-revalidate does not satisfy when stale because it requires revalidation', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -224,10 +224,10 @@ describe('okhttp tests', function() {
 
         assert(cache.stale());
         assert(cache.useStaleWhileRevalidate());
-        assert(cache.satisfiesWithoutRevalidation({ headers: {} }));
+        assert(!cache.satisfiesWithoutRevalidation({ headers: {} }));
     });
 
-    it('stale-while-revalidate satisfies when stale and must-revalidate', function() {
+    it('stale-while-revalidate does not satisfy when stale and must-revalidate because it requires revalidation', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -240,7 +240,7 @@ describe('okhttp tests', function() {
         );
 
         assert(cache.stale());
-        assert(cache.satisfiesWithoutRevalidation({ headers: {} }));
+        assert(!cache.satisfiesWithoutRevalidation({ headers: {} }));
     });
 
     it('stale-while-revalidate work with max-stale', function() {
