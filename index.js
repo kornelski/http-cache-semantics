@@ -223,7 +223,7 @@ module.exports = class CachePolicy {
         }
     }
 
-    satisfiesWithoutRevalidation(req) {
+    satisfiesWithoutRevalidation(req, options = { enableStaleWhileRevalidate: false }) {
         this._assertRequestHasHeaders(req);
 
         // When presented with a request, a cache MUST NOT reuse a stored response, unless:
@@ -255,7 +255,7 @@ module.exports = class CachePolicy {
                 }
             // Allow stale-while-revalidate queries to be served stale
             // even if must-revalidate is set as the revalidation should be happening in the background
-            } else if (this.useStaleWhileRevalidate()) {
+            } else if (options.enableStaleWhileRevalidate && this.useStaleWhileRevalidate()) {
                 allowsStale = true;
             }
 
