@@ -223,31 +223,64 @@ module.exports = class CachePolicy {
         }
     }
 
-    satisfiesWithoutRevalidation(req, options = { enableStaleWhileRevalidate: false }) {
+    satisfiesWithoutRevalidation(req) {
+        const result = this.evaluateRequest(req)
+        return !result.revalidation;
+    }
+
+    _evaluateRequestHitResult(stale = false, revalidation = undefined) {
+        return {
+            response: {
+                headers: this.responseHeaders(),
+                stale,
+            },
+            revalidation,
+        }
+    }
+
+    _evaluateRequestRevalidation(request, synchronous= true) {
+        return {
+            synchronous,
+            request: {
+                headers: this.revalidationHeaders(request),
+            },
+        };
+    }
+
+    _evaluateRequestMissResult(request) {
+        return {
+            revalidation: this._evaluateRequestRevalidation(request),
+        }
+    }
+
+    evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
 
         // When presented with a request, a cache MUST NOT reuse a stored response, unless:
         // the presented request does not contain the no-cache pragma (Section 5.4), nor the no-cache cache directive,
         // unless the stored response is successfully validated (Section 4.3), and
         const requestCC = parseCacheControl(req.headers['cache-control']);
+
         if (requestCC['no-cache'] || /no-cache/.test(req.headers.pragma)) {
-            return false;
+            return this._evaluateRequestMissResult(req);
         }
 
         if (requestCC['max-age'] && this.age() > requestCC['max-age']) {
-            return false;
+            return this._evaluateRequestMissResult(req);
         }
 
         if (
             requestCC['min-fresh'] &&
             this.timeToLive() < 1000 * requestCC['min-fresh']
         ) {
-            return false;
+            return this._evaluateRequestMissResult(req);
         }
 
         // the stored response is either:
         // fresh, or allowed to be served stale
-        if (this.stale()) {
+        let revalidation;
+        const stale = this.stale();
+        if (stale) {
             let allowsStale = false;
             if (requestCC['max-stale'] && !this._rescc['must-revalidate']) {
                 if (requestCC['max-stale'] === true || requestCC['max-stale'] > this.age() - this.maxAge()) {
@@ -255,16 +288,21 @@ module.exports = class CachePolicy {
                 }
             // Allow stale-while-revalidate queries to be served stale
             // even if must-revalidate is set as the revalidation should be happening in the background
-            } else if (options.enableStaleWhileRevalidate && this.useStaleWhileRevalidate()) {
+            } else if (this.useStaleWhileRevalidate()) {
+                revalidation = this._evaluateRequestRevalidation(req, false);
                 allowsStale = true;
             }
 
             if (!allowsStale) {
-                return false;
+                return this._evaluateRequestMissResult(req);
             }
         }
 
-        return this._requestMatches(req, false);
+        if (this._requestMatches(req, false)) {
+            return this._evaluateRequestHitResult(stale, revalidation);
+        }
+
+        return this._evaluateRequestMissResult(req);
     }
 
     _requestMatches(req, allowHeadMethod) {

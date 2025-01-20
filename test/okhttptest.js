@@ -210,7 +210,7 @@ describe('okhttp tests', function() {
         assert.equal(cache.timeToLive(), 260000);
     });
 
-    it('stale-while-revalidate does NOT satisfy when stale, and swr option disabled', function() {
+    it('stale-while-revalidate does not satisfy when stale because it requires revalidation', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -224,27 +224,10 @@ describe('okhttp tests', function() {
 
         assert(cache.stale());
         assert(cache.useStaleWhileRevalidate());
-        assert(!cache.satisfiesWithoutRevalidation({ headers: {} }, { enableStaleWhileRevalidate: false}));
+        assert(!cache.satisfiesWithoutRevalidation({ headers: {} }));
     });
 
-    it('stale-while-revalidate satisfies when stale, and swr option enabled', function() {
-        const cache = new CachePolicy(
-            { headers: {} },
-            {
-                headers: {
-                    age: 120,
-                    'cache-control': 'max-age=60, stale-while-revalidate=200',
-                },
-            },
-            { shared: false }
-        );
-
-        assert(cache.stale());
-        assert(cache.useStaleWhileRevalidate());
-        assert(cache.satisfiesWithoutRevalidation({ headers: {} }, { enableStaleWhileRevalidate: true }));
-    });
-
-    it('stale-while-revalidate does NOT satisfy when stale and must-revalidate, and swr option disabled', function() {
+    it('stale-while-revalidate does not satisfy when stale and must-revalidate because it requires revalidation', function() {
         const cache = new CachePolicy(
             { headers: {} },
             {
@@ -257,7 +240,7 @@ describe('okhttp tests', function() {
         );
 
         assert(cache.stale());
-        assert(!cache.satisfiesWithoutRevalidation({ headers: {} }, { enableStaleWhileRevalidate: false}));
+        assert(!cache.satisfiesWithoutRevalidation({ headers: {} }));
     });
 
     it('stale-while-revalidate work with max-stale', function() {
@@ -273,18 +256,16 @@ describe('okhttp tests', function() {
         );
 
         assert(cache.stale());
-        [true, false].forEach((enableStaleWhileRevalidate) => {
-            assert(cache.satisfiesWithoutRevalidation({
-                headers: {
-                    'cache-control': 'max-stale',
-                }
-            }, { enableStaleWhileRevalidate }));
-            assert(!cache.satisfiesWithoutRevalidation({
-                headers: {
-                    'cache-control': 'max-stale=40',
-                }
-            }, { enableStaleWhileRevalidate }));
-        });
+        assert(cache.satisfiesWithoutRevalidation({
+            headers: {
+                'cache-control': 'max-stale',
+            }
+        }));
+        assert(!cache.satisfiesWithoutRevalidation({
+            headers: {
+                'cache-control': 'max-stale=40',
+            }
+        }));
     });
 
     it('stale-while-revalidate not satisfies when stale and expired', function() {
@@ -301,10 +282,7 @@ describe('okhttp tests', function() {
 
         assert(cache.stale());
         assert(!cache.useStaleWhileRevalidate());
-
-        [true, false].forEach((enableStaleWhileRevalidate) => {
-            assert(!cache.satisfiesWithoutRevalidation({ headers: {} }, { enableStaleWhileRevalidate }));
-        });
+        assert(!cache.satisfiesWithoutRevalidation({ headers: {} }));
     });
 
     it('max age preferred over lower shared max age', function() {
