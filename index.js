@@ -125,6 +125,7 @@ module.exports = class CachePolicy {
 
         this._responseTime = this.now();
         this._isShared = shared !== false;
+        this._ignoreCargoCult = !!ignoreCargoCult;
         this._cacheHeuristic =
             undefined !== cacheHeuristic ? cacheHeuristic : 0.1; // 10% matches IE
         this._immutableMinTtl =
@@ -145,7 +146,7 @@ module.exports = class CachePolicy {
         // Assume that if someone uses legacy, non-standard uncecessary options they don't understand caching,
         // so there's no point stricly adhering to the blindly copy&pasted directives.
         if (
-            ignoreCargoCult &&
+            this._ignoreCargoCult &&
             'pre-check' in this._rescc &&
             'post-check' in this._rescc
         ) {
@@ -489,6 +490,7 @@ module.exports = class CachePolicy {
         this._cacheHeuristic = obj.ch;
         this._immutableMinTtl =
             obj.imm !== undefined ? obj.imm : 24 * 3600 * 1000;
+        this._ignoreCargoCult = !!obj.icc;
         this._status = obj.st;
         this._resHeaders = obj.resh;
         this._rescc = obj.rescc;
@@ -507,6 +509,7 @@ module.exports = class CachePolicy {
             sh: this._isShared,
             ch: this._cacheHeuristic,
             imm: this._immutableMinTtl,
+            icc: this._ignoreCargoCult,
             st: this._status,
             resh: this._resHeaders,
             rescc: this._rescc,
@@ -646,9 +649,16 @@ module.exports = class CachePolicy {
             }
         }
 
+        const optionsCopy = {
+            shared: this._isShared,
+            cacheHeuristic: this._cacheHeuristic,
+            immutableMinTimeToLive: this._immutableMinTtl,
+            ignoreCargoCult: this._ignoreCargoCult,
+        };
+
         if (!matches) {
             return {
-                policy: new this.constructor(request, response),
+                policy: new this.constructor(request, response, optionsCopy),
                 // Client receiving 304 without body, even if it's invalid/mismatched has no option
                 // but to reuse a cached body. We don't have a good way to tell clients to do
                 // error recovery in such case.
@@ -673,11 +683,7 @@ module.exports = class CachePolicy {
             headers,
         });
         return {
-            policy: new this.constructor(request, newResponse, {
-                shared: this._isShared,
-                cacheHeuristic: this._cacheHeuristic,
-                immutableMinTimeToLive: this._immutableMinTtl,
-            }),
+            policy: new this.constructor(request, newResponse, optionsCopy),
             modified: false,
             matches: true,
         };
