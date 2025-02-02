@@ -226,6 +226,15 @@ module.exports = class CachePolicy {
     satisfiesWithoutRevalidation(req) {
         this._assertRequestHasHeaders(req);
 
+        // In all circumstances, a cache MUST NOT ignore the must-revalidate directive
+        if (this._rescc['must-revalidate']) {
+            return false;
+        }
+
+        if (!this._requestMatches(req, false)) {
+            return false;
+        }
+
         // When presented with a request, a cache MUST NOT reuse a stored response, unless:
         // the presented request does not contain the no-cache pragma (Section 5.4), nor the no-cache cache directive,
         // unless the stored response is successfully validated (Section 4.3), and
@@ -248,17 +257,15 @@ module.exports = class CachePolicy {
         // the stored response is either:
         // fresh, or allowed to be served stale
         if (this.stale()) {
-            const allowsStale =
-                requestCC['max-stale'] &&
-                !this._rescc['must-revalidate'] &&
-                (true === requestCC['max-stale'] ||
-                    requestCC['max-stale'] > this.age() - this.maxAge());
+            const allowsStale = requestCC['max-stale'] &&
+                (true === requestCC['max-stale'] || requestCC['max-stale'] > this.age() - this.maxAge());
+
             if (!allowsStale) {
                 return false;
             }
         }
 
-        return this._requestMatches(req, false);
+        return true;
     }
 
     _requestMatches(req, allowHeadMethod) {
