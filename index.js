@@ -454,8 +454,9 @@ module.exports = class CachePolicy {
 
     /**
      * Remaining time this cache entry may be useful for, in *milliseconds*.
+     * You can use this as an expiration time for your cache storage.
      *
-     * Prefer this method over `maxAge()`, because it includes other factors.
+     * Prefer this method over `maxAge()`, because it includes other factors like `age` and `stale-while-revalidate`.
      */
     timeToLive() {
         const age = this.maxAge() - this.age();
