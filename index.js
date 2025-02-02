@@ -224,46 +224,69 @@ module.exports = class CachePolicy {
         }
     }
 
+    /**
+     * Checks if the request matches the cache and can be satisfied from the cache immediately,
+     * without having to make a request to the server.
+     *
+     * This doesn't support `stale-while-revalidate`. See `evaluateRequest()` for a more complete solution.
+     */
     satisfiesWithoutRevalidation(req) {
         const result = this.evaluateRequest(req)
         return !result.revalidation;
     }
 
-    _evaluateRequestHitResult(stale = false, revalidation = undefined) {
+    _evaluateRequestHitResult(revalidation) {
         return {
             response: {
                 headers: this.responseHeaders(),
-                stale,
             },
             revalidation,
         }
     }
 
-    _evaluateRequestRevalidation(request, synchronous= true) {
+    _evaluateRequestRevalidation(request, synchronous) {
         return {
             synchronous,
-            request: {
-                headers: this.revalidationHeaders(request),
-            },
+            headers: this.revalidationHeaders(request),
         };
     }
 
     _evaluateRequestMissResult(request) {
         return {
-            revalidation: this._evaluateRequestRevalidation(request),
+            response: undefined,
+            revalidation: this._evaluateRequestRevalidation(request, true),
         }
     }
 
+    /**
+     * Checks if the given request matches this cache entry, and how the cache can be used to satisfy it. Returns an object with:
+     *
+     * ```
+     * {
+     *     // If defined, you must send a request to the server.
+     *     revalidation: {
+     *         headers: {}, // HTTP headers to use when sending the revalidation response
+     *         // If true, you MUST wait for a response from the server before using the cache
+     *         // If false, this is stale-while-revalidate. The cache is stale, but you can use it while you update it asynchronously.
+     *         synchronous: bool,
+     *     },
+     *     // If defined, you can use this cached response.
+     *     response: {
+     *         headers: {}, // Updated cached HTTP headers you must use when responding to the client
+     *     },
+     * }
+     * ```
+     */
     evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
 
         // In all circumstances, a cache MUST NOT ignore the must-revalidate directive
         if (this._rescc['must-revalidate']) {
-            return false;
+            return this._evaluateRequestMissResult(req);
         }
 
         if (!this._requestMatches(req, false)) {
-            return false;
+            return this._evaluateRequestMissResult(req);
         }
 
         // When presented with a request, a cache MUST NOT reuse a stored response, unless:
@@ -285,27 +308,24 @@ module.exports = class CachePolicy {
 
         // the stored response is either:
         // fresh, or allowed to be served stale
-        let revalidation;
-        const stale = this.stale();
-        if (stale) {
-            let allowsStale = false;
-            if (requestCC['max-stale'] && !this._rescc['must-revalidate']) {
-                if (requestCC['max-stale'] === true || requestCC['max-stale'] > this.age() - this.maxAge()) {
-                    allowsStale = true;
-                }
-            // Allow stale-while-revalidate queries to be served stale
-            // even if must-revalidate is set as the revalidation should be happening in the background
-            } else if (this.useStaleWhileRevalidate()) {
-                revalidation = this._evaluateRequestRevalidation(req, false);
-                allowsStale = true;
+        if (this.stale()) {
+            // If a value is present, then the client is willing to accept a response that has
+            // exceeded its freshness lifetime by no more than the specified number of seconds
+            const allowsStaleWithoutRevalidation = 'max-stale' in requestCC &&
+                (true === requestCC['max-stale'] || requestCC['max-stale'] > this.age() - this.maxAge());
+
+            if (allowsStaleWithoutRevalidation) {
+                return this._evaluateRequestHitResult(undefined);
             }
 
-            if (!allowsStale) {
-                return this._evaluateRequestMissResult(req);
+            if (this.useStaleWhileRevalidate()) {
+                return this._evaluateRequestHitResult(this._evaluateRequestRevalidation(req, false));
             }
+
+            return this._evaluateRequestMissResult(req);
         }
 
-        return this._evaluateRequestHitResult(stale, revalidation);
+        return this._evaluateRequestHitResult(undefined);
     }
 
     _requestMatches(req, allowHeadMethod) {
@@ -507,6 +527,10 @@ module.exports = class CachePolicy {
         return Math.round(Math.max(0, age, staleIfErrorAge, staleWhileRevalidateAge) * 1000);
     }
 
+    /**
+     * If true, this cache entry is past its expiration date.
+     * Note that stale cache may be useful sometimes, see `evaluateRequest()`.
+     */
     stale() {
         return this.maxAge() <= this.age();
     }
@@ -515,6 +539,7 @@ module.exports = class CachePolicy {
         return this.maxAge() + toNumberOrZero(this._rescc['stale-if-error']) > this.age();
     }
 
+    /** See `evaluateRequest()` for a more complete solution */
     useStaleWhileRevalidate() {
         const swr = toNumberOrZero(this._rescc['stale-while-revalidate']);
         return swr > 0 && this.maxAge() + swr > this.age();
