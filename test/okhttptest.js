@@ -369,6 +369,17 @@ describe('okhttp tests', function() {
         );
     });
 
+    it('request min fresh with stale-while-revalidate', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            { headers: {'cache-control': 'max-age=60, stale-while-revalidate=100000'} },
+            { shared: false }
+        );
+
+        assert(!cache.satisfiesWithoutRevalidation({headers: {'cache-control': 'min-fresh=120'}}));
+        assert(cache.satisfiesWithoutRevalidation({headers: {'cache-control': 'min-fresh=10'}}));
+    });
+
     it('request max stale', function() {
         const cache = new CachePolicy(
             { headers: {} },

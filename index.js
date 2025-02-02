@@ -247,10 +247,7 @@ module.exports = class CachePolicy {
             return false;
         }
 
-        if (
-            requestCC['min-fresh'] &&
-            this.timeToLive() < 1000 * requestCC['min-fresh']
-        ) {
+        if (requestCC['min-fresh'] && this.maxAge() - this.age() < toNumberOrZero(requestCC['min-fresh'])) {
             return false;
         }
 
@@ -455,9 +452,9 @@ module.exports = class CachePolicy {
     }
 
     /**
-     * Up-to-date `max-age` value, in *milliseconds*.
+     * Remaining time this cache entry may be useful for, in *milliseconds*.
      *
-     * Prefer this method over `maxAge()`.
+     * Prefer this method over `maxAge()`, because it includes other factors.
      */
     timeToLive() {
         const age = this.maxAge() - this.age();
