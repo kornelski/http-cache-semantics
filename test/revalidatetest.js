@@ -162,7 +162,7 @@ describe('Can be revalidated?', function() {
         };
 
         const cache = new CachePolicy(simpleRequest, veryOldResponse);
-        const headers = cache.responseHeaders(simpleRequest);
+        const headers = cache.responseHeaders();
         assert(/113/.test(headers.warning));
     });
 });

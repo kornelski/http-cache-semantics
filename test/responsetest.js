@@ -138,7 +138,6 @@ describe('Response headers', function() {
                     expires: new Date(now).toGMTString(),
                 },
             },
-            { trustServerDate: false }
         );
         assert.equal(3, cache.maxAge());
     });

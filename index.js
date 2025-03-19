@@ -1,5 +1,22 @@
 'use strict';
-// rfc7231 6.1
+
+/**
+ * @typedef {Object} HttpRequest
+ * @property {Record<string, string>} headers - Request headers
+ * @property {string} [method] - HTTP method
+ * @property {string} [url] - Request URL
+ */
+
+/**
+ * @typedef {Object} HttpResponse
+ * @property {Record<string, string>} headers - Response headers
+ * @property {number} [status] - HTTP status code
+ */
+
+/**
+ * Set of default cacheable status codes per RFC 7231 section 6.1.
+ * @type {Set<number>}
+ */
 const statusCodeCacheableByDefault = new Set([
     200,
     203,
@@ -15,7 +32,11 @@ const statusCodeCacheableByDefault = new Set([
     501,
 ]);
 
-// This implementation does not understand partial responses (206)
+/**
+ * Set of HTTP status codes that the cache implementation understands.
+ * Note: This implementation does not understand partial responses (206).
+ * @type {Set<number>}
+ */
 const understoodStatuses = new Set([
     200,
     203,
@@ -33,6 +54,10 @@ const understoodStatuses = new Set([
     501,
 ]);
 
+/**
+ * Set of HTTP error status codes.
+ * @type {Set<number>}
+ */
 const errorStatusCodes = new Set([
     500,
     502,
@@ -40,6 +65,10 @@ const errorStatusCodes = new Set([
     504,
 ]);
 
+/**
+ * Object representing hop-by-hop headers that should be removed.
+ * @type {Record<string, boolean>}
+ */
 const hopByHopHeaders = {
     date: true, // included, because we add Age update Date
     connection: true,
@@ -52,6 +81,10 @@ const hopByHopHeaders = {
     upgrade: true,
 };
 
+/**
+ * Headers that are excluded from revalidation update.
+ * @type {Record<string, boolean>}
+ */
 const excludedFromRevalidationUpdate = {
     // Since the old body is reused, it doesn't make sense to change properties of the body
     'content-length': true,
@@ -60,21 +93,37 @@ const excludedFromRevalidationUpdate = {
     'content-range': true,
 };
 
+/**
+ * Converts a string to a number or returns zero if the conversion fails.
+ * @param {string} s - The string to convert.
+ * @returns {number} The parsed number or 0.
+ */
 function toNumberOrZero(s) {
     const n = parseInt(s, 10);
     return isFinite(n) ? n : 0;
 }
 
-// RFC 5861
+/**
+ * Determines if the given response is an error response.
+ * Implements RFC 5861 behavior.
+ * @param {HttpResponse|undefined} response - The HTTP response object.
+ * @returns {boolean} true if the response is an error or undefined, false otherwise.
+ */
 function isErrorResponse(response) {
     // consider undefined response as faulty
-    if(!response) {
-        return true
+    if (!response) {
+        return true;
     }
     return errorStatusCodes.has(response.status);
 }
 
+/**
+ * Parses a Cache-Control header string into an object.
+ * @param {string} [header] - The Cache-Control header value.
+ * @returns {Record<string, string|boolean>} An object representing Cache-Control directives.
+ */
 function parseCacheControl(header) {
+    /** @type {Record<string, string|boolean>} */
     const cc = {};
     if (!header) return cc;
 
@@ -89,6 +138,11 @@ function parseCacheControl(header) {
     return cc;
 }
 
+/**
+ * Formats a Cache-Control directives object into a header string.
+ * @param {Record<string, string|boolean>} cc - The Cache-Control directives.
+ * @returns {string|undefined} A formatted Cache-Control header string or undefined if empty.
+ */
 function formatCacheControl(cc) {
     let parts = [];
     for (const k in cc) {
@@ -102,6 +156,17 @@ function formatCacheControl(cc) {
 }
 
 module.exports = class CachePolicy {
+    /**
+     * Creates a new CachePolicy instance.
+     * @param {HttpRequest} req - Incoming client request.
+     * @param {HttpResponse} res - Received server response.
+     * @param {Object} [options={}] - Configuration options.
+     * @param {boolean} [options.shared=true] - Is the cache shared (a public proxy)? `false` for personal browser caches.
+     * @param {number} [options.cacheHeuristic=0.1] - Fallback heuristic (age fraction) for cache duration.
+     * @param {number} [options.immutableMinTimeToLive=86400000] - Minimum TTL for immutable responses in milliseconds.
+     * @param {boolean} [options.ignoreCargoCult=false] - Detect nonsense cache headers, and override them.
+     * @param {any} [options._fromObject] - Internal parameter for deserialization. Do not use.
+     */
     constructor(
         req,
         res,
@@ -123,24 +188,38 @@ module.exports = class CachePolicy {
         }
         this._assertRequestHasHeaders(req);
 
+        /** @type {number} Timestamp when the response was received */
         this._responseTime = this.now();
+        /** @type {boolean} Indicates if the cache is shared */
         this._isShared = shared !== false;
+        /** @type {boolean} Indicates if legacy cargo cult directives should be ignored */
         this._ignoreCargoCult = !!ignoreCargoCult;
+        /** @type {number} Heuristic cache fraction */
         this._cacheHeuristic =
             undefined !== cacheHeuristic ? cacheHeuristic : 0.1; // 10% matches IE
+        /** @type {number} Minimum TTL for immutable responses in ms */
         this._immutableMinTtl =
             undefined !== immutableMinTimeToLive
                 ? immutableMinTimeToLive
                 : 24 * 3600 * 1000;
 
+        /** @type {number} HTTP status code */
         this._status = 'status' in res ? res.status : 200;
+        /** @type {Record<string, string>} Response headers */
         this._resHeaders = res.headers;
+        /** @type {Record<string, string|boolean>} Parsed Cache-Control directives from response */
         this._rescc = parseCacheControl(res.headers['cache-control']);
+        /** @type {string} HTTP method (e.g., GET, POST) */
         this._method = 'method' in req ? req.method : 'GET';
+        /** @type {string} Request URL */
         this._url = req.url;
+        /** @type {string} Host header from the request */
         this._host = req.headers.host;
+        /** @type {boolean} Whether the request does not include an Authorization header */
         this._noAuthorization = !req.headers.authorization;
+        /** @type {Record<string, string>|null} Request headers used for Vary matching */
         this._reqHeaders = res.headers.vary ? req.headers : null; // Don't keep all request headers if they won't be used
+        /** @type {Record<string, string|boolean>} Parsed Cache-Control directives from request */
         this._reqcc = parseCacheControl(req.headers['cache-control']);
 
         // Assume that if someone uses legacy, non-standard uncecessary options they don't understand caching,
@@ -172,10 +251,18 @@ module.exports = class CachePolicy {
         }
     }
 
+    /**
+     * You can monkey-patch it for testing.
+     * @returns {number} Current time in milliseconds.
+     */
     now() {
         return Date.now();
     }
 
+    /**
+     * Determines if the response is storable in a cache.
+     * @returns {boolean} `false` if can never be cached.
+     */
     storable() {
         // The "no-store" request directive indicates that a cache MUST NOT store any part of either this request or any response to it.
         return !!(
@@ -209,15 +296,22 @@ module.exports = class CachePolicy {
         );
     }
 
+    /**
+     * @returns {boolean} true if expiration is explicitly defined.
+     */
     _hasExplicitExpiration() {
         // 4.2.1 Calculating Freshness Lifetime
-        return (
+        return !!(
             (this._isShared && this._rescc['s-maxage']) ||
             this._rescc['max-age'] ||
             this._resHeaders.expires
         );
     }
 
+    /**
+     * @param {HttpRequest} req - a request
+     * @throws {Error} if the headers are missing.
+     */
     _assertRequestHasHeaders(req) {
         if (!req || !req.headers) {
             throw Error('Request headers missing');
@@ -229,21 +323,33 @@ module.exports = class CachePolicy {
      * without having to make a request to the server.
      *
      * This doesn't support `stale-while-revalidate`. See `evaluateRequest()` for a more complete solution.
+     *
+     * @param {HttpRequest} req - The new incoming HTTP request.
+     * @returns {boolean} `true`` if the cached response used to construct this cache policy satisfies the request without revalidation.
      */
     satisfiesWithoutRevalidation(req) {
-        const result = this.evaluateRequest(req)
+        const result = this.evaluateRequest(req);
         return !result.revalidation;
     }
 
+    /**
+     * @param {{headers: Record<string, string>, synchronous: boolean}|undefined} revalidation - Revalidation information, if any.
+     * @returns {{response: {headers: Record<string, string>}, revalidation: {headers: Record<string, string>, synchronous: boolean}|undefined}} An object with a cached response headers and revalidation info.
+     */
     _evaluateRequestHitResult(revalidation) {
         return {
             response: {
                 headers: this.responseHeaders(),
             },
             revalidation,
-        }
+        };
     }
 
+    /**
+     * @param {HttpRequest} request - new incoming
+     * @param {boolean} synchronous - whether revalidation must be synchronous (not s-w-r).
+     * @returns {{headers: Record<string, string>, synchronous: boolean}} An object with revalidation headers and a synchronous flag.
+     */
     _evaluateRequestRevalidation(request, synchronous) {
         return {
             synchronous,
@@ -251,11 +357,15 @@ module.exports = class CachePolicy {
         };
     }
 
+    /**
+     * @param {HttpRequest} request - new incoming
+     * @returns {{response: undefined, revalidation: {headers: Record<string, string>, synchronous: boolean}}} An object indicating no cached response and revalidation details.
+     */
     _evaluateRequestMissResult(request) {
         return {
             response: undefined,
             revalidation: this._evaluateRequestRevalidation(request, true),
-        }
+        };
     }
 
     /**
@@ -276,6 +386,10 @@ module.exports = class CachePolicy {
      *     },
      * }
      * ```
+     * @param {HttpRequest} req - new incoming HTTP request
+     * @returns {{response: {headers: Record<string, string>}|undefined, revalidation: {headers: Record<string, string>, synchronous: boolean}|undefined}} An object containing keys:
+     *   - revalidation: { headers: Record<string, string>, synchronous: boolean } Set if you should send this to the origin server
+     *   - response: { headers: Record<string, string> } Set if you can respond to the client with these cached headers
      */
     evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
@@ -298,7 +412,7 @@ module.exports = class CachePolicy {
             return this._evaluateRequestMissResult(req);
         }
 
-        if (requestCC['max-age'] && this.age() > requestCC['max-age']) {
+        if (requestCC['max-age'] && this.age() > toNumberOrZero(requestCC['max-age'])) {
             return this._evaluateRequestMissResult(req);
         }
 
@@ -328,9 +442,14 @@ module.exports = class CachePolicy {
         return this._evaluateRequestHitResult(undefined);
     }
 
+    /**
+     * @param {HttpRequest} req - check if this is for the same cache entry
+     * @param {boolean} allowHeadMethod - allow a HEAD method to match.
+     * @returns {boolean} `true` if the request matches.
+     */
     _requestMatches(req, allowHeadMethod) {
         // The presented effective request URI and that of the stored response match, and
-        return (
+        return !!(
             (!this._url || this._url === req.url) &&
             this._host === req.headers.host &&
             // the request method associated with the stored response allows it to be used for the presented request, and
@@ -342,15 +461,24 @@ module.exports = class CachePolicy {
         );
     }
 
+    /**
+     * Determines whether storing authenticated responses is allowed.
+     * @returns {boolean} `true` if allowed.
+     */
     _allowsStoringAuthenticated() {
-        //  following Cache-Control response directives (Section 5.2.2) have such an effect: must-revalidate, public, and s-maxage.
-        return (
+        // following Cache-Control response directives (Section 5.2.2) have such an effect: must-revalidate, public, and s-maxage.
+        return !!(
             this._rescc['must-revalidate'] ||
             this._rescc.public ||
             this._rescc['s-maxage']
         );
     }
 
+    /**
+     * Checks whether the Vary header in the response matches the new request.
+     * @param {HttpRequest} req - incoming HTTP request
+     * @returns {boolean} `true` if the vary headers match.
+     */
     _varyMatches(req) {
         if (!this._resHeaders.vary) {
             return true;
@@ -371,7 +499,13 @@ module.exports = class CachePolicy {
         return true;
     }
 
+    /**
+     * Creates a copy of the given headers without any hop-by-hop headers.
+     * @param {Record<string, string>} inHeaders - old headers from the cached response
+     * @returns {Record<string, string>} A new headers object without hop-by-hop headers.
+     */
     _copyWithoutHopByHopHeaders(inHeaders) {
+        /** @type {Record<string, string>} */
         const headers = {};
         for (const name in inHeaders) {
             if (hopByHopHeaders[name]) continue;
@@ -397,6 +531,11 @@ module.exports = class CachePolicy {
         return headers;
     }
 
+    /**
+     * Returns the response headers adjusted for serving the cached response.
+     * Removes hop-by-hop headers and updates the Age and Date headers.
+     * @returns {Record<string, string>} The adjusted response headers.
+     */
     responseHeaders() {
         const headers = this._copyWithoutHopByHopHeaders(this._resHeaders);
         const age = this.age();
@@ -418,8 +557,8 @@ module.exports = class CachePolicy {
     }
 
     /**
-     * Value of the Date response header or current time if Date was invalid
-     * @return timestamp
+     * Returns the Date header value from the response or the current time if invalid.
+     * @returns {number} Timestamp (in milliseconds) representing the Date header or response time.
      */
     date() {
         const serverDate = Date.parse(this._resHeaders.date);
@@ -432,8 +571,7 @@ module.exports = class CachePolicy {
     /**
      * Value of the Age header, in seconds, updated for the current time.
      * May be fractional.
-     *
-     * @return Number
+     * @returns {number} The age in seconds.
      */
     age() {
         let age = this._ageValue();
@@ -442,6 +580,9 @@ module.exports = class CachePolicy {
         return age + residentTime;
     }
 
+    /**
+     * @returns {number} The Age header value as a number.
+     */
     _ageValue() {
         return toNumberOrZero(this._resHeaders.age);
     }
@@ -452,7 +593,8 @@ module.exports = class CachePolicy {
      *
      * For an up-to-date value, see `timeToLive()`.
      *
-     * @return Number
+     * Returns the maximum age (freshness lifetime) of the response in seconds.
+     * @returns {number} The max-age value in seconds.
      */
     maxAge() {
         if (!this.storable() || this._rescc['no-cache']) {
@@ -519,6 +661,7 @@ module.exports = class CachePolicy {
      * You can use this as an expiration time for your cache storage.
      *
      * Prefer this method over `maxAge()`, because it includes other factors like `age` and `stale-while-revalidate`.
+     * @returns {number} Time-to-live in milliseconds.
      */
     timeToLive() {
         const age = this.maxAge() - this.age();
@@ -530,25 +673,40 @@ module.exports = class CachePolicy {
     /**
      * If true, this cache entry is past its expiration date.
      * Note that stale cache may be useful sometimes, see `evaluateRequest()`.
+     * @returns {boolean} `false` doesn't mean it's fresh nor usable
      */
     stale() {
         return this.maxAge() <= this.age();
     }
 
+    /**
+     * @returns {boolean} `true` if `stale-if-error` condition allows use of a stale response.
+     */
     _useStaleIfError() {
         return this.maxAge() + toNumberOrZero(this._rescc['stale-if-error']) > this.age();
     }
 
-    /** See `evaluateRequest()` for a more complete solution */
+    /** See `evaluateRequest()` for a more complete solution
+     * @returns {boolean} `true` if `stale-while-revalidate` is currently allowed.
+     */
     useStaleWhileRevalidate() {
         const swr = toNumberOrZero(this._rescc['stale-while-revalidate']);
         return swr > 0 && this.maxAge() + swr > this.age();
     }
 
+    /**
+     * Creates a `CachePolicy` instance from a serialized object.
+     * @param {Object} obj - The serialized object.
+     * @returns {CachePolicy} A new CachePolicy instance.
+     */
     static fromObject(obj) {
         return new this(undefined, undefined, { _fromObject: obj });
     }
 
+    /**
+     * @param {any} obj - The serialized object.
+     * @throws {Error} If already initialized or if the object is invalid.
+     */
     _fromObject(obj) {
         if (this._responseTime) throw Error('Reinitialized');
         if (!obj || obj.v !== 1) throw Error('Invalid serialization');
@@ -570,6 +728,10 @@ module.exports = class CachePolicy {
         this._reqcc = obj.reqcc;
     }
 
+    /**
+     * Serializes the `CachePolicy` instance into a JSON-serializable object.
+     * @returns {Object} The serialized object.
+     */
     toObject() {
         return {
             v: 1,
@@ -596,6 +758,8 @@ module.exports = class CachePolicy {
      *
      * Hop by hop headers are always stripped.
      * Revalidation headers may be added or removed, depending on request.
+     * @param {HttpRequest} incomingReq - The incoming HTTP request.
+     * @returns {Record<string, string>} The headers for the revalidation request.
      */
     revalidationHeaders(incomingReq) {
         this._assertRequestHasHeaders(incomingReq);
@@ -660,7 +824,10 @@ module.exports = class CachePolicy {
      * Returns {policy, modified} where modified is a boolean indicating
      * whether the response body has been modified, and old cached body can't be used.
      *
-     * @return {Object} {policy: CachePolicy, modified: Boolean}
+     * @param {HttpRequest} request - The latest HTTP request asking for the cached entry.
+     * @param {HttpResponse} response - The latest revalidation HTTP response from the origin server.
+     * @returns {{policy: CachePolicy, modified: boolean, matches: boolean}} The updated policy and modification status.
+     * @throws {Error} If the response headers are missing.
      */
     revalidatedPolicy(request, response) {
         this._assertRequestHasHeaders(request);

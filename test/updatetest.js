@@ -278,7 +278,7 @@ describe('Update revalidated', function() {
 
         const { policy, modified } = cache.revalidatedPolicy(
             simpleRequest,
-            { status: 500 }
+            { status: 500, headers: {} }
         );
         assert(policy === cache);
         assert(modified === false);

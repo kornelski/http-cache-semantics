@@ -74,7 +74,6 @@ describe('Other', function() {
 
         const c = new CachePolicy(req, res, {
             shared: false,
-            trustServerDate: false,
         });
         assert(c.satisfiesWithoutRevalidation(req));
     });
