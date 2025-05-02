@@ -334,12 +334,13 @@ module.exports = class CachePolicy {
 
     /**
      * @param {{headers: Record<string, string>, synchronous: boolean}|undefined} revalidation - Revalidation information, if any.
-     * @returns {{response: {headers: Record<string, string>}, revalidation: {headers: Record<string, string>, synchronous: boolean}|undefined}} An object with a cached response headers and revalidation info.
+     * @returns {{response: HttpResponse, revalidation: {headers: Record<string, string>, synchronous: boolean}|undefined}} An object with a cached response headers and revalidation info.
      */
     _evaluateRequestHitResult(revalidation) {
         return {
             response: {
                 headers: this.responseHeaders(),
+                status: this._status,
             },
             revalidation,
         };
@@ -387,9 +388,9 @@ module.exports = class CachePolicy {
      * }
      * ```
      * @param {HttpRequest} req - new incoming HTTP request
-     * @returns {{response: {headers: Record<string, string>}|undefined, revalidation: {headers: Record<string, string>, synchronous: boolean}|undefined}} An object containing keys:
+     * @returns {{response: HttpResponse|undefined, revalidation: {headers: Record<string, string>, synchronous: boolean}|undefined}} An object containing keys:
      *   - revalidation: { headers: Record<string, string>, synchronous: boolean } Set if you should send this to the origin server
-     *   - response: { headers: Record<string, string> } Set if you can respond to the client with these cached headers
+     *   - response: HttpResponse Set if you can respond to the client with these cached headers
      */
     evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
@@ -568,6 +569,14 @@ module.exports = class CachePolicy {
         headers.age = `${Math.round(age)}`;
         headers.date = new Date(this.now()).toUTCString();
         return headers;
+    }
+
+    /**
+     * Returns the status code of the cached response.
+     * @returns {number} The response status code.
+     */
+    status() {
+      return this._status;
     }
 
     /**
