@@ -394,11 +394,6 @@ module.exports = class CachePolicy {
     evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
 
-        // In all circumstances, a cache MUST NOT ignore the must-revalidate directive
-        if (this._rescc['must-revalidate']) {
-            return this._evaluateRequestMissResult(req);
-        }
-
         if (!this._requestMatches(req, false)) {
             return this._evaluateRequestMissResult(req);
         }
@@ -426,6 +421,7 @@ module.exports = class CachePolicy {
             // If a value is present, then the client is willing to accept a response that has
             // exceeded its freshness lifetime by no more than the specified number of seconds
             const allowsStaleWithoutRevalidation = 'max-stale' in requestCC &&
+                !this._rescc['must-revalidate'] &&
                 (true === requestCC['max-stale'] || requestCC['max-stale'] > this.age() - this.maxAge());
 
             if (allowsStaleWithoutRevalidation) {

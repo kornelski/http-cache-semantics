@@ -494,6 +494,37 @@ describe('okhttp tests', function() {
         );
     });
 
+    it('fresh must-revalidate may be served without revalidation', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            { headers: { 'cache-control': 'max-age=300, must-revalidate' } }
+        );
+
+        assert(!cache.stale());
+        assert(cache.satisfiesWithoutRevalidation({ headers: {} }));
+
+        const result = cache.evaluateRequest({ headers: {} });
+        assert(!result.revalidation);
+        assert(result.response);
+    });
+
+    it('stale must-revalidate requires revalidation', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    'cache-control': 'max-age=120, must-revalidate',
+                    age: 360,
+                },
+            }
+        );
+
+        assert(cache.stale());
+        const result = cache.evaluateRequest({ headers: {} });
+        assert(result.revalidation.synchronous);
+        assert(!result.response);
+    });
+
     it('request max stale not honored with must revalidate', function() {
         const cache = new CachePolicy(
             { headers: {} },
