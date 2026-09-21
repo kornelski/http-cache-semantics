@@ -394,8 +394,8 @@ module.exports = class CachePolicy {
     evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
 
-        // In all circumstances, a cache MUST NOT ignore the must-revalidate directive
-        if (this._rescc['must-revalidate']) {
+        // Request directives cannot override restrictions on reusing the response.
+        if (this._rescc['must-revalidate'] || this._requiresRevalidation()) {
             return this._evaluateRequestMissResult(req);
         }
 
@@ -614,6 +614,23 @@ _varyMatches(req) {
     }
 
     /**
+     * Distinguishes reuse restrictions from ordinary expiration.
+     * @returns {boolean} Whether this response must not be reused without validation.
+     */
+    _requiresRevalidation() {
+        return !!(
+            !this.storable() ||
+            this._rescc['no-cache'] ||
+            (this._isShared &&
+                (this._rescc['proxy-revalidate'] ||
+                    // Sharing responses with cookies requires an explicit opt-in.
+                    (this._resHeaders['set-cookie'] &&
+                        !this._rescc.public &&
+                        !this._rescc.immutable)))
+        );
+    }
+
+    /**
      * Possibly outdated value of applicable max-age (or heuristic equivalent) in seconds.
      * This counts since response's `Date`.
      *
@@ -623,18 +640,7 @@ _varyMatches(req) {
      * @returns {number} The max-age value in seconds.
      */
     maxAge() {
-        if (!this.storable() || this._rescc['no-cache']) {
-            return 0;
-        }
-
-        // Shared responses with cookies are cacheable according to the RFC, but IMHO it'd be unwise to do so by default
-        // so this implementation requires explicit opt-in via public header
-        if (
-            this._isShared &&
-            (this._resHeaders['set-cookie'] &&
-                !this._rescc.public &&
-                !this._rescc.immutable)
-        ) {
+        if (this._requiresRevalidation()) {
             return 0;
         }
 
@@ -643,9 +649,6 @@ _varyMatches(req) {
         }
 
         if (this._isShared) {
-            if (this._rescc['proxy-revalidate']) {
-                return 0;
-            }
             // if a response includes the s-maxage directive, a shared cache recipient MUST ignore the Expires field.
             if (this._rescc['s-maxage']) {
                 return toNumberOrZero(this._rescc['s-maxage']);
