@@ -479,25 +479,51 @@ module.exports = class CachePolicy {
      * @param {HttpRequest} req - incoming HTTP request
      * @returns {boolean} `true` if the vary headers match.
      */
-    _varyMatches(req) {
-        if (!this._resHeaders.vary) {
-            return true;
+_varyMatches(req) {
+    if (!this._resHeaders.vary) {
+        return true;
+    }
+
+    const fields = this._resHeaders.vary
+        .trim()
+        .toLowerCase()
+        .split(/\s*,\s*/);
+
+    // A Vary header field-value of '*' always fails to match.
+    if (fields.includes('*')) {
+        return false;
+    }
+
+    for (const name of fields) {
+        const reqHasOwn = Object.prototype.hasOwnProperty.call(
+            req.headers,
+            name
+        );
+        const cachedHasOwn = Object.prototype.hasOwnProperty.call(
+            this._reqHeaders,
+            name
+        );
+
+        // A Vary field must not match inherited properties.
+        if (!reqHasOwn && !cachedHasOwn) {
+            if (name in req.headers || name in this._reqHeaders) {
+                return false;
+            }
+
+            continue;
         }
 
-        // A Vary header field-value of "*" always fails to match
-        if (this._resHeaders.vary === '*') {
+        if (!reqHasOwn || !cachedHasOwn) {
             return false;
         }
 
-        const fields = this._resHeaders.vary
-            .trim()
-            .toLowerCase()
-            .split(/\s*,\s*/);
-        for (const name of fields) {
-            if (req.headers[name] !== this._reqHeaders[name]) return false;
+        if (req.headers[name] !== this._reqHeaders[name]) {
+            return false;
         }
-        return true;
     }
+
+    return true;
+}
 
     /**
      * Creates a copy of the given headers without any hop-by-hop headers.
