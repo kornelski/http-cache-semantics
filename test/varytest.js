@@ -32,6 +32,43 @@ describe('Vary', function() {
             !policy.satisfiesWithoutRevalidation({ headers: { weather: 'ok' } })
         );
     });
+    it("* with whitespace doesn't match", function() {
+    for (const vary of ['* ', ' *', ' * ', '*,', '*, weather', 'weather, *']) {
+        const policy = new CachePolicy(
+            { headers: { weather: 'ok' } },
+            { headers: { 'cache-control': 'max-age=5', vary } }
+        );
+
+        assert(
+            !policy.satisfiesWithoutRevalidation({
+                headers: { weather: 'ok' },
+            }),
+            `Vary "${vary}" should not match`
+        );
+    }
+});
+
+it('Prototype properties do not match', function() {
+    for (const header of ['constructor', '__proto__']) {
+        const policy = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    'cache-control': 'max-age=5',
+                    vary: header,
+                },
+            }
+        );
+
+        assert(
+            !policy.satisfiesWithoutRevalidation({
+                headers: {},
+            }),
+            `Vary "${header}" should not match inherited properties`
+        );
+    }
+});
+
 
     it('* is stale', function() {
         const policy1 = new CachePolicy(
