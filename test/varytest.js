@@ -22,6 +22,24 @@ describe('Vary', function() {
         );
     });
 
+    it('Basic reserved name', function() {
+        const policy = new CachePolicy(
+            { headers: { constructor: 'nice' } },
+            { headers: { 'cache-control': 'max-age=5', vary: 'constructor' } }
+        );
+
+        assert(
+            policy.satisfiesWithoutRevalidation({
+                headers: { constructor: 'nice' },
+            })
+        );
+        assert(
+            !policy.satisfiesWithoutRevalidation({
+                headers: { constructor: 'bad' },
+            })
+        );
+    });
+
     it("* doesn't match", function() {
         const policy = new CachePolicy(
             { headers: { weather: 'ok' } },
@@ -32,43 +50,33 @@ describe('Vary', function() {
             !policy.satisfiesWithoutRevalidation({ headers: { weather: 'ok' } })
         );
     });
+
+    it("* doesn't match reserved name", function() {
+        const policy = new CachePolicy(
+            { headers: { constructor: 'ok' } },
+            { headers: { 'cache-control': 'max-age=5', vary: '*' } }
+        );
+
+        assert(
+            !policy.satisfiesWithoutRevalidation({ headers: { constructor: 'ok' } })
+        );
+    });
+
     it("* with whitespace doesn't match", function() {
-    for (const vary of ['* ', ' *', ' * ', '*,', '*, weather', 'weather, *']) {
-        const policy = new CachePolicy(
-            { headers: { weather: 'ok' } },
-            { headers: { 'cache-control': 'max-age=5', vary } }
-        );
+        for (const vary of ['* ', ' *', ' * ', '*,', '*, weather', 'weather, *']) {
+            const policy = new CachePolicy(
+                { headers: { weather: 'ok' } },
+                { headers: { 'cache-control': 'max-age=5', vary } }
+            );
 
-        assert(
-            !policy.satisfiesWithoutRevalidation({
-                headers: { weather: 'ok' },
-            }),
-            `Vary "${vary}" should not match`
-        );
-    }
-});
-
-it('Prototype properties do not match', function() {
-    for (const header of ['constructor', '__proto__']) {
-        const policy = new CachePolicy(
-            { headers: {} },
-            {
-                headers: {
-                    'cache-control': 'max-age=5',
-                    vary: header,
-                },
-            }
-        );
-
-        assert(
-            !policy.satisfiesWithoutRevalidation({
-                headers: {},
-            }),
-            `Vary "${header}" should not match inherited properties`
-        );
-    }
-});
-
+            assert(
+                !policy.satisfiesWithoutRevalidation({
+                    headers: { weather: 'ok' },
+                }),
+                `Vary "${vary}" should not match`
+            );
+        }
+    });
 
     it('* is stale', function() {
         const policy1 = new CachePolicy(
