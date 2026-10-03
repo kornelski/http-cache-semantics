@@ -108,6 +108,8 @@ cachedResponse.headers = cachePolicy.responseHeaders();
 
 Suggests a time in _milliseconds_ for how long this cache entry may be useful. This is not freshness, so always check with `satisfiesWithoutRevalidation()`. This time may be longer than response's `max-age` to allow for `stale-if-error` and `stale-while-revalidate`.
 
+Stale extensions do not extend the lifetime of responses that cannot be reused without validation, including `no-cache`, shared responses with cookies without an explicit opt-in, and `Vary: *`. Directives that prohibit stale reuse, such as `must-revalidate` and shared `s-maxage`, limit the suggested lifetime to the remaining freshness lifetime.
+
 After that time (when `timeToLive() <= 0`) the response may still be usable in certain cases, e.g. if client can explicitly allows stale responses.
 
 ### `toObject()`/`fromObject(json)`
@@ -119,6 +121,8 @@ You'll want to store the `CachePolicy` object along with the cached response. `o
 ### `evaluateRequest(newRequest)`
 
 Returns an object telling what to do next — optional `revalidation`, and optional `response` from cache. Either one of these properties will be present. Both may be present at the same time.
+
+Use this method to decide whether a response can be served while revalidating. `useStaleWhileRevalidate()` only checks the response policy and its time window; it accepts no request and cannot check URL, method, Host, Vary, or request directives.
 
 ```js
 {
@@ -229,6 +233,10 @@ Use this method to update the cache after receiving a new response from the orig
 -   `modified` — Boolean indicating whether the response body has changed, and you should use the new response body sent by the server.
     -   If `true`, you should use the new response body, and you can replace the old cached response with the updated one.
     -   If `false`, then you should reuse the old cached response body. Either a valid 304 Not Modified response has been received, or an error happened and `stale-if-error` allows falling back to the cache.
+
+Error fallback requires a matching request and a reusable response policy. Request `no-cache` (or legacy `Pragma: no-cache` when Cache-Control is absent) requires successful validation and does not fall back after an error. If an absent response cannot fall back, this method throws `Response headers missing`.
+
+Cache storage and response selection are separate responsibilities. A positive `timeToLive()` is a retention suggestion, not permission to serve an entry. Consumers must retain enough policy metadata to check each request, and must not unconditionally copy a cached body after a failed fetch. Existing cache metadata created with an older policy should be reevaluated; updating this library cannot repair a consumer's own expiry-only cache hits or stale fallback logic.
 
 # Yo, FRESH
 

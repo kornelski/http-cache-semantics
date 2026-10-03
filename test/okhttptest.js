@@ -161,7 +161,12 @@ describe('okhttp tests', function() {
     });
 
     it('maxAge timetolive', function() {
-        const cache = new CachePolicy(
+        const now = Date.now();
+        const cache = new (class extends CachePolicy {
+            now() {
+                return now;
+            }
+        })(
             { headers: {} },
             {
                 headers: {
@@ -171,15 +176,17 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
-        const now = Date.now();
-        cache.now = () => now
-
         assert(!cache.stale());
         assert.equal(cache.timeToLive(), 60000);
     });
 
     it('stale-if-error timetolive', function() {
-        const cache = new CachePolicy(
+        const now = Date.now();
+        const cache = new (class extends CachePolicy {
+            now() {
+                return now;
+            }
+        })(
             { headers: {} },
             {
                 headers: {
@@ -195,7 +202,12 @@ describe('okhttp tests', function() {
     });
 
     it('stale-while-revalidate timetolive', function() {
-        const cache = new CachePolicy(
+        const now = Date.now();
+        const cache = new (class extends CachePolicy {
+            now() {
+                return now;
+            }
+        })(
             { headers: {} },
             {
                 headers: {
