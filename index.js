@@ -425,7 +425,19 @@ module.exports = class CachePolicy {
         if (this.stale()) {
             // If a value is present, then the client is willing to accept a response that has
             // exceeded its freshness lifetime by no more than the specified number of seconds
-            const allowsStaleWithoutRevalidation = 'max-stale' in requestCC &&
+            // max-stale must not override response directives or shared-cache
+            // safeguards that require validation before reuse.
+            const responseRequiresRevalidation =
+                this._rescc['must-revalidate'] ||
+                this._rescc['no-cache'] ||
+                (this._isShared && (
+                    this._rescc['proxy-revalidate'] ||
+                    (this._resHeaders['set-cookie'] &&
+                        !this._rescc.public &&
+                        !this._rescc.immutable)
+                ));
+            const allowsStaleWithoutRevalidation = !responseRequiresRevalidation &&
+                'max-stale' in requestCC &&
                 (true === requestCC['max-stale'] || requestCC['max-stale'] > this.age() - this.maxAge());
 
             if (allowsStaleWithoutRevalidation) {

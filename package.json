@@ -1,8 +1,8 @@
 {
     "name": "http-cache-semantics",
-    "version": "4.2.0",
+    "version": "4.2.1-masharif46.1",
     "description": "Parses Cache-Control and other headers. Helps building correct HTTP caches and proxies",
-    "repository": "https://github.com/kornelski/http-cache-semantics.git",
+    "repository": "https://github.com/masharif46/http-cache-semantics.git",
     "main": "index.js",
     "types": "index.js",
     "scripts": {
@@ -14,6 +14,6 @@
     "author": "Kornel Lesiński <kornel@geekhood.net> (https://kornel.ski/)",
     "license": "BSD-2-Clause",
     "devDependencies": {
-        "mocha": "^11.0"
+        "mocha": "^12.0.3"
     }
 }

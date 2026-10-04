@@ -114,6 +114,80 @@ describe('Satisfies', function() {
         assert(policy.satisfiesWithoutRevalidation({ headers: {} }));
     });
 
+    it('max-stale cannot bypass response revalidation safeguards', function() {
+        const protectedResponses = [
+            {
+                name: 'Set-Cookie on a shared cache',
+                headers: {
+                    age: '10',
+                    'cache-control': 'max-age=1',
+                    'set-cookie': 'session=secret',
+                },
+            },
+            {
+                name: 'proxy-revalidate on a shared cache',
+                headers: {
+                    age: '10',
+                    'cache-control': 'max-age=1, proxy-revalidate',
+                },
+            },
+            {
+                name: 'no-cache response',
+                headers: {
+                    age: '10',
+                    'cache-control': 'max-age=1, no-cache',
+                },
+            },
+            {
+                name: 'must-revalidate response',
+                headers: {
+                    age: '10',
+                    'cache-control': 'max-age=1, must-revalidate',
+                },
+            },
+        ];
+
+        for (const response of protectedResponses) {
+            const policy = new CachePolicy(
+                { headers: {} },
+                { status: 200, headers: response.headers }
+            );
+
+            assert(policy.stale(), `${response.name} should be stale`);
+            for (const maxStale of ['max-stale', 'max-stale=1000']) {
+                const result = policy.evaluateRequest({
+                    headers: { 'cache-control': maxStale },
+                });
+                assert.strictEqual(
+                    result.response,
+                    undefined,
+                    `${response.name} must not be reused with ${maxStale}`
+                );
+                assert(result.revalidation, `${response.name} must require revalidation`);
+            }
+        }
+    });
+
+    it('max-stale still allows an ordinary expired response within its limit', function() {
+        const policy = new CachePolicy(
+            { headers: {} },
+            {
+                status: 200,
+                headers: {
+                    age: '10',
+                    'cache-control': 'public, max-age=1',
+                },
+            }
+        );
+
+        assert(policy.stale());
+        assert(
+            policy.satisfiesWithoutRevalidation({
+                headers: { 'cache-control': 'max-stale=20' },
+            })
+        );
+    });
+
     it('not when no-cache requesting', function() {
         const policy = new CachePolicy(
             { headers: {} },

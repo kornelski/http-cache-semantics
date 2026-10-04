@@ -189,6 +189,7 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        cache.now = () => cache._responseTime;
 
         assert(!cache.stale());
         assert.equal(cache.timeToLive(), 260000);
@@ -205,6 +206,7 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        cache.now = () => cache._responseTime;
 
         assert(!cache.stale());
         assert.equal(cache.timeToLive(), 260000);
