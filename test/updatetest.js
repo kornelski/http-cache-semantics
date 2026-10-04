@@ -284,3 +284,82 @@ describe('Update revalidated', function() {
         assert(modified === false);
     });
 });
+
+describe('stale-if-error request matching', function() {
+    const request = withHeaders(simpleRequest, { 'accept-language': 'en' });
+    const response = {
+        status: 200,
+        headers: {
+            'cache-control': 'max-age=60, stale-if-error=60',
+            age: '61',
+            vary: 'accept-language',
+            etag: '"123456789"',
+        },
+    };
+
+    function staleCache() {
+        const cache = new CachePolicy(request, response);
+        assert(cache.storable());
+        assert(cache.stale());
+        return cache;
+    }
+
+    const mismatchedRequests = {
+        Vary: withHeaders(request, { 'accept-language': 'fr' }),
+        URL: Object.assign({}, request, { url: '/other' }),
+        Host: withHeaders(request, { host: 'www.w4c.org' }),
+        method: Object.assign({}, request, { method: 'POST' }),
+    };
+
+    for (const [field, incomingRequest] of Object.entries(mismatchedRequests)) {
+        it(`does not reuse a stale response after a ${field} mismatch`, function() {
+            const cache = staleCache();
+            const revalidationRequest = Object.assign({}, incomingRequest, {
+                headers: cache.revalidationHeaders(incomingRequest),
+            });
+            assert.strictEqual(revalidationRequest.headers['if-none-match'], undefined);
+
+            const result = cache.revalidatedPolicy(revalidationRequest, {
+                status: 503,
+                headers: {},
+            });
+            assert.strictEqual(result.modified, true);
+            assert.strictEqual(result.matches, false);
+            assert.notStrictEqual(result.policy, cache);
+            assert.strictEqual(result.policy.toObject().st, 503);
+        });
+    }
+
+    for (const method of ['GET', 'HEAD']) {
+        it(`reuses a stale response for matching ${method} requests on server errors`, function() {
+            const cache = staleCache();
+            const incomingRequest = Object.assign({}, request, { method });
+            const revalidationRequest = Object.assign({}, incomingRequest, {
+                headers: cache.revalidationHeaders(incomingRequest),
+            });
+            assert.strictEqual(revalidationRequest.headers['if-none-match'], response.headers.etag);
+
+            for (const status of [500, 502, 503, 504]) {
+                assert.deepStrictEqual(
+                    cache.revalidatedPolicy(revalidationRequest, { status, headers: {} }),
+                    { policy: cache, modified: false, matches: true },
+                    `status ${status}`
+                );
+            }
+        });
+    }
+
+    it('requires a matching request when no response is available', function() {
+        const cache = staleCache();
+        for (const failedResponse of [null, undefined]) {
+            assert.deepStrictEqual(
+                cache.revalidatedPolicy(request, failedResponse),
+                { policy: cache, modified: false, matches: true }
+            );
+            assert.throws(
+                () => cache.revalidatedPolicy(mismatchedRequests.Vary, failedResponse),
+                /Response headers missing/
+            );
+        }
+    });
+});
