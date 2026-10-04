@@ -855,7 +855,7 @@ module.exports = class CachePolicy {
     revalidatedPolicy(request, response) {
         this._assertRequestHasHeaders(request);
 
-        if (this._useStaleIfError() && isErrorResponse(response)) {
+        if (this._requestMatches(request, true) && this._useStaleIfError() && isErrorResponse(response)) {
           return {
               policy: this,
               modified: false,
