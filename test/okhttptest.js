@@ -525,6 +525,103 @@ describe('okhttp tests', function() {
         );
     });
 
+    it('request max stale not honored with proxy revalidate in a shared cache', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 360,
+                    'cache-control': 'max-age=120, proxy-revalidate',
+                },
+            }
+        );
+
+        assert(cache.stale());
+
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale=600',
+                },
+            })
+        );
+
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale',
+                },
+            })
+        );
+    });
+
+    it('request max stale not honored with s-maxage in a shared cache', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 360,
+                    'cache-control': 's-maxage=120',
+                },
+            }
+        );
+
+        assert(cache.stale());
+
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale=600',
+                },
+            })
+        );
+
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale',
+                },
+            })
+        );
+    });
+
+    it('fresh s-maxage remains reusable in a shared cache', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 60,
+                    'cache-control': 's-maxage=120',
+                },
+            }
+        );
+
+        assert(!cache.stale());
+        assert(cache.satisfiesWithoutRevalidation({ headers: {} }));
+    });
+
+    it('request max stale remains honored with proxy revalidate in a private cache', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 360,
+                    'cache-control': 'max-age=120, proxy-revalidate',
+                },
+            },
+            { shared: false }
+        );
+
+        assert(cache.stale());
+        assert(
+            cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale',
+                },
+            })
+        );
+    });
+
     it('get headers deletes cached100 level warnings', function() {
         const cache = new CachePolicy(
             { headers: {} },

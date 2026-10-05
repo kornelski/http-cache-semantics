@@ -400,6 +400,17 @@ module.exports = class CachePolicy {
             return this._evaluateRequestMissResult(req);
         }
 
+        // A shared cache MUST NOT serve stale responses carrying
+        // proxy-revalidate or s-maxage, even when the request permits stale
+        // responses with max-stale (RFC 9111 sections 4.2.4 and 5.2.2.8/10).
+        if (
+            this.stale() &&
+            this._isShared &&
+            (this._rescc['proxy-revalidate'] || this._rescc['s-maxage'])
+        ) {
+            return this._evaluateRequestMissResult(req);
+        }
+
         if (!this._requestMatches(req, false)) {
             return this._evaluateRequestMissResult(req);
         }
