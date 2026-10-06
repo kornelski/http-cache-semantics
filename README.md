@@ -230,6 +230,8 @@ Use this method to update the cache after receiving a new response from the orig
     -   If `true`, you should use the new response body, and you can replace the old cached response with the updated one.
     -   If `false`, then you should reuse the old cached response body. Either a valid 304 Not Modified response has been received, or an error happened and `stale-if-error` allows falling back to the cache.
 
+For `stale-if-error` fallback, pass the original request identity (`url`, `method`, `host`, and headers named by `Vary`) along with the revalidation request headers. The request must match the stored response, and response directives requiring validation take precedence over stale reuse. Shared responses with `Set-Cookie` retain the library's conservative requirement for an explicit `public` or `immutable` opt-in.
+
 # Yo, FRESH
 
 ![satisfiesWithoutRevalidation](fresh.jpg)
