@@ -189,6 +189,7 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        cache.now = () => cache._responseTime;
 
         assert(!cache.stale());
         assert.equal(cache.timeToLive(), 260000);
@@ -205,6 +206,7 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        cache.now = () => cache._responseTime;
 
         assert(!cache.stale());
         assert.equal(cache.timeToLive(), 260000);
@@ -254,6 +256,7 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        cache.now = () => cache._responseTime;
 
         assert(cache.stale());
         assert(cache.satisfiesWithoutRevalidation({
@@ -261,9 +264,14 @@ describe('okhttp tests', function() {
                 'cache-control': 'max-stale',
             }
         }));
-        assert(!cache.satisfiesWithoutRevalidation({
+        assert(cache.satisfiesWithoutRevalidation({
             headers: {
                 'cache-control': 'max-stale=40',
+            }
+        }));
+        assert(!cache.satisfiesWithoutRevalidation({
+            headers: {
+                'cache-control': 'max-stale=39',
             }
         }));
     });

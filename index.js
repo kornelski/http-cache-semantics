@@ -132,7 +132,7 @@ function parseCacheControl(header) {
     const parts = header.trim().split(/,/);
     for (const part of parts) {
         const [k, v] = part.split(/=/, 2);
-        cc[k.trim()] = v === undefined ? true : v.trim().replace(/^"|"$/g, '');
+        cc[k.trim().toLowerCase()] = v === undefined ? true : v.trim().replace(/^"|"$/g, '');
     }
 
     return cc;
@@ -395,19 +395,7 @@ module.exports = class CachePolicy {
     evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
 
-        // In all circumstances, a cache MUST NOT ignore the must-revalidate directive
-        if (this._rescc['must-revalidate']) {
-            return this._evaluateRequestMissResult(req);
-        }
-
-        // A shared cache MUST NOT serve stale responses carrying
-        // proxy-revalidate or s-maxage, even when the request permits stale
-        // responses with max-stale (RFC 9111 sections 4.2.4 and 5.2.2.8/10).
-        if (
-            this.stale() &&
-            this._isShared &&
-            (this._rescc['proxy-revalidate'] || this._rescc['s-maxage'])
-        ) {
+        if (!this._allowsReuse()) {
             return this._evaluateRequestMissResult(req);
         }
 
@@ -438,7 +426,7 @@ module.exports = class CachePolicy {
             // If a value is present, then the client is willing to accept a response that has
             // exceeded its freshness lifetime by no more than the specified number of seconds
             const allowsStaleWithoutRevalidation = 'max-stale' in requestCC &&
-                (true === requestCC['max-stale'] || requestCC['max-stale'] > this.age() - this.maxAge());
+                (true === requestCC['max-stale'] || requestCC['max-stale'] >= this.age() - this.maxAge());
 
             if (allowsStaleWithoutRevalidation) {
                 return this._evaluateRequestHitResult(undefined);
@@ -651,9 +639,6 @@ module.exports = class CachePolicy {
         }
 
         if (this._isShared) {
-            if (this._rescc['proxy-revalidate']) {
-                return 0;
-            }
             // if a response includes the s-maxage directive, a shared cache recipient MUST ignore the Expires field.
             if (this._rescc['s-maxage']) {
                 return toNumberOrZero(this._rescc['s-maxage']);
@@ -713,11 +698,31 @@ module.exports = class CachePolicy {
         return this.maxAge() <= this.age();
     }
 
+    _allowsReuse() {
+        if (!this.storable() || this._rescc['no-cache']) {
+            return false;
+        }
+        if (!this.stale()) {
+            return true;
+        }
+        return !(
+            this._rescc['must-revalidate'] ||
+            (this._isShared && (
+                this._rescc['proxy-revalidate'] ||
+                this._rescc['s-maxage'] ||
+                (this._resHeaders['set-cookie'] &&
+                    !this._rescc.public &&
+                    !this._rescc.immutable)
+            ))
+        );
+    }
+
     /**
      * @returns {boolean} `true` if `stale-if-error` condition allows use of a stale response.
      */
     _useStaleIfError() {
-        return this.maxAge() + toNumberOrZero(this._rescc['stale-if-error']) > this.age();
+        const sie = toNumberOrZero(this._rescc['stale-if-error']);
+        return sie > 0 && this._allowsReuse() && this.maxAge() + sie > this.age();
     }
 
     /** See `evaluateRequest()` for a more complete solution
@@ -725,7 +730,7 @@ module.exports = class CachePolicy {
      */
     useStaleWhileRevalidate() {
         const swr = toNumberOrZero(this._rescc['stale-while-revalidate']);
-        return swr > 0 && this.maxAge() + swr > this.age();
+        return swr > 0 && this._allowsReuse() && this.maxAge() + swr > this.age();
     }
 
     /**
@@ -866,7 +871,7 @@ module.exports = class CachePolicy {
     revalidatedPolicy(request, response) {
         this._assertRequestHasHeaders(request);
 
-        if (this._useStaleIfError() && isErrorResponse(response)) {
+        if (this._requestMatches(request, true) && this._useStaleIfError() && isErrorResponse(response)) {
           return {
               policy: this,
               modified: false,
