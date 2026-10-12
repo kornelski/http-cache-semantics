@@ -119,13 +119,18 @@ function isErrorResponse(response) {
 
 /**
  * Parses a Cache-Control header string into an object.
- * @param {string} [header] - The Cache-Control header value.
+ * @param {string|string[]} [header] - The Cache-Control header value.
  * @returns {Record<string, string|boolean>} An object representing Cache-Control directives.
  */
 function parseCacheControl(header) {
     /** @type {Record<string, string|boolean>} */
     const cc = {};
     if (!header) return cc;
+
+    if ('string' !== typeof header) {
+        // Repeated Cache-Control headers may be given as an array
+        header = header.join(',');
+    }
 
     // TODO: When there is more than one value present for a given directive (e.g., two Expires header fields, multiple Cache-Control: max-age directives),
     // the directive's value is considered invalid. Caches are encouraged to consider responses that have invalid freshness information to be stale
