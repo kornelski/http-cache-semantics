@@ -395,8 +395,22 @@ module.exports = class CachePolicy {
     evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
 
-        // In all circumstances, a cache MUST NOT ignore the must-revalidate directive
-        if (this._rescc['must-revalidate']) {
+        // Response revalidation requirements take precedence over stale reuse.
+        if (
+            this._rescc['must-revalidate'] ||
+            this._rescc['no-cache'] ||
+            (this._isShared && this._rescc['proxy-revalidate'])
+        ) {
+            return this._evaluateRequestMissResult(req);
+        }
+
+        // Preserve maxAge()'s conservative policy for shared responses with cookies.
+        if (
+            this._isShared &&
+            this._resHeaders['set-cookie'] &&
+            !this._rescc.public &&
+            !this._rescc.immutable
+        ) {
             return this._evaluateRequestMissResult(req);
         }
 
