@@ -64,6 +64,27 @@ describe('Can be revalidated?', function() {
         assertNoValidators(headers);
     });
 
+    it('does not send stored POST validators for HEAD revalidation', function() {
+        const original = new CachePolicy(
+            simpleRequestBut({ method: 'POST' }),
+            multiValidatorResponse
+        );
+        for (const cache of [original, CachePolicy.fromObject(original.toObject())]) {
+            assert(cache.storable());
+            for (const validators of [
+                {},
+                { 'if-none-match': '"client"', 'if-modified-since': 'Tue, 15 Nov 1994 12:45:26 GMT' },
+            ]) {
+                const headers = cache.revalidationHeaders(simpleRequestBut({
+                    method: 'HEAD',
+                    headers: Object.assign({}, simpleRequest.headers, validators),
+                }));
+                assertHeadersPassed(headers);
+                assertNoValidators(headers);
+            }
+        }
+    });
+
     it('not if url mismatch', function() {
         const cache = new CachePolicy(simpleRequest, etaggedResponse);
         const incomingRequest = simpleRequestBut({ url: '/yomomma' });

@@ -84,8 +84,14 @@ describe('Satisfies', function() {
                             const request = { url: '/account', headers: { 'cache-control': 'max-stale=100' } };
                             assert.strictEqual(policy.storable(), true);
                             assert.strictEqual(policy.stale(), stale);
-                            if (!stale) {
-                                assert.strictEqual(policy.satisfiesWithoutRevalidation({ url: '/account', headers: {} }), true);
+                            const ordinaryRequest = { url: '/account', headers: {} };
+                            const result = policy.evaluateRequest(ordinaryRequest);
+                            assert.strictEqual(Boolean(result.response), !requiresValidation);
+                            assert.strictEqual(policy.satisfiesWithoutRevalidation(ordinaryRequest), !stale);
+                            if (stale) {
+                                assert.strictEqual(result.revalidation.synchronous, requiresValidation);
+                            } else {
+                                assert.strictEqual(result.revalidation, undefined);
                             }
                             assert.strictEqual(policy.satisfiesWithoutRevalidation(request), !requiresValidation);
                             assert.strictEqual(Boolean(policy.evaluateRequest(request).response), !requiresValidation);
