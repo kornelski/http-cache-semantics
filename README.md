@@ -230,6 +230,14 @@ Use this method to update the cache after receiving a new response from the orig
     -   If `true`, you should use the new response body, and you can replace the old cached response with the updated one.
     -   If `false`, then you should reuse the old cached response body. Either a valid 304 Not Modified response has been received, or an error happened and `stale-if-error` allows falling back to the cache.
 
+For `stale-if-error` fallback, pass the revalidation request's `url`, `method`, and `headers` (including `headers.host` and any headers named by `Vary`). The request must match the stored response. A `HEAD` request can revalidate a stored `GET` response, but cannot reuse a stored `POST` response. Pass the actual method: omitting it preserves the legacy behavior of skipping method matching. Response directives requiring validation take precedence over stale reuse. Shared responses with `Set-Cookie` retain the library's conservative requirement for an explicit `public` or `immutable` opt-in.
+
+### Authenticated responses in shared caches
+
+Following [RFC 9111 section 3.5](https://www.rfc-editor.org/rfc/rfc9111.html#section-3.5), `must-revalidate`, `public`, and `s-maxage` can permit a shared cache to reuse a response originally requested with `Authorization`. When fresh, such a response can satisfy a matching request without `Authorization`, unless `Vary: Authorization` distinguishes it. Fresh `must-revalidate` responses previously required validation unconditionally; they now follow this rule. Once stale, `must-revalidate` and shared `s-maxage` responses still require successful validation, even when the request permits `max-stale` or the response permits stale extensions.
+
+An origin serving user-specific content must choose appropriate cache controls, such as `private` or `no-store`, or explicitly vary the representation by `Authorization`. This library does not independently partition a shared cache by authenticated user. A private cache must remain scoped to its user by the application.
+
 # Yo, FRESH
 
 ![satisfiesWithoutRevalidation](fresh.jpg)

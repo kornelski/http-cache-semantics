@@ -189,6 +189,7 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        cache.now = () => cache._responseTime;
 
         assert(!cache.stale());
         assert.equal(cache.timeToLive(), 260000);
@@ -205,6 +206,7 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        cache.now = () => cache._responseTime;
 
         assert(!cache.stale());
         assert.equal(cache.timeToLive(), 260000);
@@ -254,6 +256,7 @@ describe('okhttp tests', function() {
             },
             { shared: false }
         );
+        cache.now = () => cache._responseTime;
 
         assert(cache.stale());
         assert(cache.satisfiesWithoutRevalidation({
@@ -261,9 +264,14 @@ describe('okhttp tests', function() {
                 'cache-control': 'max-stale',
             }
         }));
-        assert(!cache.satisfiesWithoutRevalidation({
+        assert(cache.satisfiesWithoutRevalidation({
             headers: {
                 'cache-control': 'max-stale=40',
+            }
+        }));
+        assert(!cache.satisfiesWithoutRevalidation({
+            headers: {
+                'cache-control': 'max-stale=39',
             }
         }));
     });
@@ -518,6 +526,103 @@ describe('okhttp tests', function() {
 
         assert(
             !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale',
+                },
+            })
+        );
+    });
+
+    it('request max stale not honored with proxy revalidate in a shared cache', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 360,
+                    'cache-control': 'max-age=120, proxy-revalidate',
+                },
+            }
+        );
+
+        assert(cache.stale());
+
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale=600',
+                },
+            })
+        );
+
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale',
+                },
+            })
+        );
+    });
+
+    it('request max stale not honored with s-maxage in a shared cache', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 360,
+                    'cache-control': 's-maxage=120',
+                },
+            }
+        );
+
+        assert(cache.stale());
+
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale=600',
+                },
+            })
+        );
+
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                headers: {
+                    'cache-control': 'max-stale',
+                },
+            })
+        );
+    });
+
+    it('fresh s-maxage remains reusable in a shared cache', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 60,
+                    'cache-control': 's-maxage=120',
+                },
+            }
+        );
+
+        assert(!cache.stale());
+        assert(cache.satisfiesWithoutRevalidation({ headers: {} }));
+    });
+
+    it('request max stale remains honored with proxy revalidate in a private cache', function() {
+        const cache = new CachePolicy(
+            { headers: {} },
+            {
+                headers: {
+                    age: 360,
+                    'cache-control': 'max-age=120, proxy-revalidate',
+                },
+            },
+            { shared: false }
+        );
+
+        assert(cache.stale());
+        assert(
+            cache.satisfiesWithoutRevalidation({
                 headers: {
                     'cache-control': 'max-stale',
                 },
