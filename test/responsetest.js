@@ -523,4 +523,23 @@ describe('Response headers', function() {
         const h2 = cache2.responseHeaders();
         assert.deepEqual(h, h2);
     });
+
+    it('remove hop headers given as arrays', function() {
+        const cache = new CachePolicy(req, {
+            headers: {
+                date: 'now',
+                custom: 'header',
+                oompa: 'lumpa',
+                connection: ['close', 'oompa'],
+                warning: ['199 test danger', '299 real warning'],
+                'cache-control': 'public, max-age=333',
+            },
+        });
+
+        const h = cache.responseHeaders();
+        assert(!h.connection);
+        assert(!h.oompa);
+        assert.equal(h.warning, '299 real warning');
+        assert.equal(h.custom, 'header');
+    });
 });

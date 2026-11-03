@@ -202,6 +202,48 @@ describe('Vary', function() {
         );
     });
 
+    it('array syntax', function() {
+        const policy = new CachePolicy(
+            { headers: { weather: 'nice', sun: ['shining'] } },
+            {
+                headers: {
+                    'cache-control': 'max-age=5',
+                    vary: ['weather', 'sun'],
+                },
+            }
+        );
+
+        assert(
+            policy.satisfiesWithoutRevalidation({
+                headers: { weather: 'nice', sun: 'shining' },
+            })
+        );
+        assert(
+            policy.satisfiesWithoutRevalidation({
+                headers: { weather: 'nice', sun: ['shining'] },
+            })
+        );
+        assert(
+            !policy.satisfiesWithoutRevalidation({
+                headers: { weather: 'nice', sun: 'cloudy' },
+            })
+        );
+    });
+
+    it("* given as an array doesn't match", function() {
+        const policy = new CachePolicy(
+            { headers: { weather: 'ok' } },
+            { headers: { 'cache-control': 'public,max-age=99', vary: ['*'] } }
+        );
+
+        assert(policy.stale());
+        assert(
+            !policy.satisfiesWithoutRevalidation({
+                headers: { weather: 'ok' },
+            })
+        );
+    });
+
     it('Order is irrelevant', function() {
         const policy1 = new CachePolicy(
             { headers: { sun: 'shining', weather: 'nice' } },
