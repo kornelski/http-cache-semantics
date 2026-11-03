@@ -87,4 +87,18 @@ describe('Request properties', function() {
         assert(cache.stale());
         assert(!cache.storable());
     });
+
+    it('Cache-Control given as an array', function() {
+        const cache = new CachePolicy(
+            { method: 'GET', headers: { 'cache-control': ['no-cache'] } },
+            cacheableResponse
+        );
+        assert(!cache.stale());
+        assert(
+            !cache.satisfiesWithoutRevalidation({
+                method: 'GET',
+                headers: { 'cache-control': ['no-cache'] },
+            })
+        );
+    });
 });

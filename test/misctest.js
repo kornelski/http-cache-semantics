@@ -10,6 +10,24 @@ describe('Other', function() {
         });
     });
 
+    it('Thaw headers given as arrays', function() {
+        const cache = new CachePolicy(
+            { headers: { weather: 'nice' } },
+            { headers: { 'cache-control': 'max-age=5', vary: 'weather' } }
+        );
+        // serialized by a version that stored repeated headers as arrays
+        const obj = cache.toObject();
+        obj.resh.vary = ['weather'];
+        obj.reqh = { weather: ['nice'] };
+
+        const restored = CachePolicy.fromObject(obj);
+        assert(
+            restored.satisfiesWithoutRevalidation({
+                headers: { weather: 'nice' },
+            })
+        );
+    });
+
     it('Missing headers', function() {
         assert.throws(() => {
             new CachePolicy({});

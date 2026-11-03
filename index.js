@@ -119,13 +119,18 @@ function isErrorResponse(response) {
 
 /**
  * Parses a Cache-Control header string into an object.
- * @param {string} [header] - The Cache-Control header value.
+ * @param {string|string[]} [header] - The Cache-Control header value.
  * @returns {Record<string, string|boolean>} An object representing Cache-Control directives.
  */
 function parseCacheControl(header) {
     /** @type {Record<string, string|boolean>} */
     const cc = {};
     if (!header) return cc;
+
+    if ('string' !== typeof header) {
+        // Repeated Cache-Control headers may be given as an array
+        header = header.join(',');
+    }
 
     // TODO: When there is more than one value present for a given directive (e.g., two Expires header fields, multiple Cache-Control: max-age directives),
     // the directive's value is considered invalid. Caches are encouraged to consider responses that have invalid freshness information to be stale
@@ -136,6 +141,26 @@ function parseCacheControl(header) {
     }
 
     return cc;
+}
+
+/**
+ * Combines repeated header fields, which some HTTP clients give as an array,
+ * into a single comma-joined value so the rest of the code sees strings only.
+ * Set-Cookie is excluded: its values must not be combined (RFC 6265).
+ * @param {Record<string, string|string[]>} headers - The original header map.
+ * @returns {Record<string, string|string[]>} A copy with array values joined.
+ */
+function normalizedHeaders(headers) {
+    /** @type {Record<string, string|string[]>} */
+    const out = {};
+    for (const name in headers) {
+        const value = headers[name];
+        out[name] =
+            Array.isArray(value) && 'set-cookie' !== name
+                ? value.join(',')
+                : value;
+    }
+    return out;
 }
 
 /**
@@ -206,7 +231,7 @@ module.exports = class CachePolicy {
         /** @type {number} HTTP status code */
         this._status = 'status' in res ? res.status : 200;
         /** @type {Record<string, string>} Response headers */
-        this._resHeaders = res.headers;
+        this._resHeaders = normalizedHeaders(res.headers);
         /** @type {Record<string, string|boolean>} Parsed Cache-Control directives from response */
         this._rescc = parseCacheControl(res.headers['cache-control']);
         /** @type {string} HTTP method (e.g., GET, POST) */
@@ -218,7 +243,9 @@ module.exports = class CachePolicy {
         /** @type {boolean} Whether the request does not include an Authorization header */
         this._noAuthorization = !req.headers.authorization;
         /** @type {Record<string, string>|null} Request headers used for Vary matching */
-        this._reqHeaders = res.headers.vary ? req.headers : null; // Don't keep all request headers if they won't be used
+        this._reqHeaders = this._resHeaders.vary
+            ? normalizedHeaders(req.headers)
+            : null; // Don't keep all request headers if they won't be used
         /** @type {Record<string, string|boolean>} Parsed Cache-Control directives from request */
         this._reqcc = parseCacheControl(req.headers['cache-control']);
 
@@ -394,6 +421,9 @@ module.exports = class CachePolicy {
      */
     evaluateRequest(req) {
         this._assertRequestHasHeaders(req);
+        req = Object.assign({}, req, {
+            headers: normalizedHeaders(req.headers),
+        });
 
         // In all circumstances, a cache MUST NOT ignore the must-revalidate directive
         if (this._rescc['must-revalidate']) {
@@ -741,13 +771,13 @@ module.exports = class CachePolicy {
             obj.imm !== undefined ? obj.imm : 24 * 3600 * 1000;
         this._ignoreCargoCult = !!obj.icc;
         this._status = obj.st;
-        this._resHeaders = obj.resh;
+        this._resHeaders = normalizedHeaders(obj.resh);
         this._rescc = obj.rescc;
         this._method = obj.m;
         this._url = obj.u;
         this._host = obj.h;
         this._noAuthorization = obj.a;
-        this._reqHeaders = obj.reqh;
+        this._reqHeaders = obj.reqh ? normalizedHeaders(obj.reqh) : obj.reqh;
         this._reqcc = obj.reqcc;
     }
 
@@ -786,6 +816,9 @@ module.exports = class CachePolicy {
      */
     revalidationHeaders(incomingReq) {
         this._assertRequestHasHeaders(incomingReq);
+        incomingReq = Object.assign({}, incomingReq, {
+            headers: normalizedHeaders(incomingReq.headers),
+        });
         const headers = this._copyWithoutHopByHopHeaders(incomingReq.headers);
 
         // This implementation does not understand range requests
@@ -866,6 +899,9 @@ module.exports = class CachePolicy {
         if (!response || !response.headers) {
             throw Error('Response headers missing');
         }
+        response = Object.assign({}, response, {
+            headers: normalizedHeaders(response.headers),
+        });
 
         // These aren't going to be supported exactly, since one CachePolicy object
         // doesn't know about all the other cached objects.

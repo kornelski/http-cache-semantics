@@ -42,6 +42,21 @@ describe('Response headers', function() {
         assert.equal(cache.maxAge(), 678);
     });
 
+    it('array syntax', function() {
+        // Repeated Cache-Control headers may be given as an array
+        const cache = new CachePolicy(req, {
+            headers: {
+                'cache-control': [
+                    'no-store, no-cache, must-revalidate, post-check=0, pre-check=0',
+                    'max-age=0, no-cache',
+                ],
+            },
+        });
+        assert(cache.stale());
+        assert(!cache.storable());
+        assert.equal(cache.maxAge(), 0);
+    });
+
     it('IIS', function() {
         const cache = new CachePolicy(
             req,
@@ -507,5 +522,24 @@ describe('Response headers', function() {
         assert(cache2 instanceof TimeTravellingPolicy);
         const h2 = cache2.responseHeaders();
         assert.deepEqual(h, h2);
+    });
+
+    it('remove hop headers given as arrays', function() {
+        const cache = new CachePolicy(req, {
+            headers: {
+                date: 'now',
+                custom: 'header',
+                oompa: 'lumpa',
+                connection: ['close', 'oompa'],
+                warning: ['199 test danger', '299 real warning'],
+                'cache-control': 'public, max-age=333',
+            },
+        });
+
+        const h = cache.responseHeaders();
+        assert(!h.connection);
+        assert(!h.oompa);
+        assert.equal(h.warning, '299 real warning');
+        assert.equal(h.custom, 'header');
     });
 });

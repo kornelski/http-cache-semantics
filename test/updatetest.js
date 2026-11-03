@@ -260,6 +260,21 @@ describe('Update revalidated', function() {
         );
     });
 
+    it('etag given as an array', function() {
+        const cache = new CachePolicy(
+            simpleRequest,
+            withHeaders(etaggedResponse, { etag: ['"123456789"'] })
+        );
+
+        const { policy, modified, matches } = cache.revalidatedPolicy(
+            simpleRequest,
+            { status: 304, headers: { etag: ['W/"123456789"'] } }
+        );
+        assert(matches);
+        assert.strictEqual(modified, false);
+        assert.equal(policy.responseHeaders().etag, 'W/"123456789"');
+    });
+
     it("staleIfError revalidate, no response", function() {
         const cacheableStaleResponse = { headers: { 'cache-control': 'max-age=200, stale-if-error=300' } };
         const cache = new CachePolicy(simpleRequest, cacheableStaleResponse);

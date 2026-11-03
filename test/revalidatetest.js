@@ -165,6 +165,26 @@ describe('Can be revalidated?', function() {
         const headers = cache.responseHeaders();
         assert(/113/.test(headers.warning));
     });
+
+    it('headers given as arrays', function() {
+        const cache = new CachePolicy(simpleRequest, etaggedResponse);
+        const headers = cache.revalidationHeaders(
+            simpleRequestBut({
+                headers: {
+                    host: 'www.w3c.org',
+                    connection: ['close', 'x-custom'],
+                    warning: ['199 test danger', '299 real warning'],
+                    'x-custom': 'yes',
+                    'if-match': ['"a"'],
+                    'if-none-match': ['W/"weak"', '"strong"'],
+                },
+            })
+        );
+        assert.strictEqual(headers.connection, undefined);
+        assert.strictEqual(headers['x-custom'], undefined);
+        assert.equal(headers.warning, '299 real warning');
+        assert.equal(headers['if-none-match'], '"strong", "123456789"');
+    });
 });
 
 describe('Validation request', function() {
